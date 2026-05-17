@@ -59,3 +59,5 @@ ccws_log_info()  { printf 'ccws: %s\n'        "$*" >&2; }
 ccws_log_warn()  { printf 'ccws: warn: %s\n'  "$*" >&2; }
 ccws_log_error() { printf 'ccws: error: %s\n' "$*" >&2; }
 ccws_log_ok()    { printf 'ccws: ok: %s\n'    "$*" >&2; }
+
+export CCWS_COMMON_LOADED=1
