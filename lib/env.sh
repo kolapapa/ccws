@@ -68,3 +68,5 @@ ccws_env_get() {
     [[ -f "$envfile" ]] || return 1
     grep -m1 "^${key}=" "$envfile" | cut -d= -f2-
 }
+
+export CCWS_ENV_LOADED=1
