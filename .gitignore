@@ -1,0 +1,13 @@
+# tests
+tests/tmp/
+*.tmp
+
+# editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# local config
+.env
+.env.local

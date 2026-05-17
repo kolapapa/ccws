@@ -1,0 +1,3 @@
+# Allow common bash patterns we use
+disable=SC1091  # Don't follow sources we know exist at runtime
+disable=SC2155  # local with command substitution — common pattern
