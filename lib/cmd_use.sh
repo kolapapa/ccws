@@ -33,6 +33,7 @@ ccws_cmd_use_print_exports() {
         printf 'export CCWS_BINARY=%q\n' "$binary"
         printf 'export PATH=%q\n' "$(dirname "$binary"):$PATH"
     }
+    return 0
 }
 
 export CCWS_CMD_USE_LOADED=1
