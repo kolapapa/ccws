@@ -11,7 +11,7 @@ setup_fake_home() {
 }
 
 teardown_fake_home() {
-    [[ -n "${HOME:-}" && "$HOME" == "$BATS_TMPDIR"/* ]] && rm -rf "$HOME"
+    [[ -n "${BATS_TMPDIR:-}" && -n "${HOME:-}" && "$HOME" == "$BATS_TMPDIR"/* ]] && rm -rf "$HOME"
     export HOME="$REAL_HOME"
     unset REAL_HOME
 }

@@ -13,7 +13,7 @@ teardown() {
 
 @test "fake \$HOME is created and isolated" {
     [[ -d "$HOME" ]]
-    [[ "$HOME" != "/Users/kola" ]]
+    [[ "$HOME" != "$REAL_HOME" ]]
     [[ "$HOME" == "$BATS_TMPDIR"/* ]]
 }
 
