@@ -32,6 +32,8 @@ _ccws_lock_with_flock() {
     ) 9>"$lockfile"
 }
 
+# NOTE: This mkdir-based lock is NOT reentrant. A nested ccws_with_lock call
+# will deadlock until timeout. The flock(1) backend on Linux is unaffected.
 _ccws_lock_with_mkdir() {
     local timeout="$1"; local lockfile="$2"; shift 2
     local lockdir="${lockfile}.d"
@@ -45,8 +47,11 @@ _ccws_lock_with_mkdir() {
         sleep 0.2
     done
 
+    # Ensure lockdir is removed even on SIGINT/SIGTERM
     local rc=0
+    trap 'rmdir "$lockdir" 2>/dev/null; trap - INT TERM EXIT; exit 130' INT TERM
     "$@" || rc=$?
+    trap - INT TERM
     rmdir "$lockdir"
     return "$rc"
 }

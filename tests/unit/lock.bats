@@ -42,3 +42,25 @@ teardown() {
     [[ "$status" -ne 0 ]]
     wait
 }
+
+@test "ccws_with_lock cleans up lockdir on SIGINT (mkdir backend only)" {
+    # Skip if flock available — only mkdir backend has this hazard
+    if command -v flock >/dev/null 2>&1; then
+        skip "flock(1) available — uses OS-level lock, not lockdir"
+    fi
+    # Background: lock, wait inside a sleep, then kill it
+    bash -c "
+        source '$CCWS_PROJECT_ROOT/lib/common.sh'
+        source '$CCWS_PROJECT_ROOT/lib/lock.sh'
+        ccws_with_lock 10 -- sleep 30
+    " &
+    local pid=$!
+    sleep 0.3   # give it time to acquire lock
+    # Verify lockdir exists
+    [[ -d "$HOME/.ccws/lock.d" ]]
+    kill -INT $pid
+    wait $pid 2>/dev/null || true
+    sleep 0.3   # give trap time to clean up
+    # Lockdir must be gone
+    [[ ! -d "$HOME/.ccws/lock.d" ]]
+}
