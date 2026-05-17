@@ -35,6 +35,11 @@ ccws_symlink_farm_create() {
         local source_path="$src/$item"
         local target_path="$ws/$item"
         if [[ -e "$source_path" || -L "$source_path" ]]; then
+            # BSD `ln -sfn` won't replace an existing real directory — it would
+            # create a symlink INSIDE the dir. Detect and remove first.
+            if [[ -d "$target_path" && ! -L "$target_path" ]]; then
+                rm -rf "$target_path"
+            fi
             ln -sfn "$source_path" "$target_path"
         fi
     done

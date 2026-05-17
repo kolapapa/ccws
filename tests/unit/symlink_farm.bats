@@ -67,6 +67,22 @@ teardown() {
     [[ "$status" -ne 0 ]]
 }
 
+@test "ccws_symlink_farm_create replaces an existing real directory target" {
+    # Simulate stale local state at the target path
+    mkdir -p "$HOME/.ccws/workspaces/test/plugins"
+    echo "stale" > "$HOME/.ccws/workspaces/test/plugins/junk.txt"
+
+    ccws_symlink_farm_create test
+
+    local target="$HOME/.ccws/workspaces/test/plugins"
+    # Must now be a symlink, not the real dir
+    [[ -L "$target" ]]
+    # Must point at ~/.claude/plugins
+    [[ "$(readlink "$target")" == "$HOME/.claude/plugins" ]]
+    # The junk.txt inside the stale dir is gone (the dir was removed)
+    [[ ! -e "$HOME/.ccws/workspaces/test/plugins/junk.txt" ]]
+}
+
 @test "ccws_symlink_farm_sync removes dangling and re-adds new" {
     ccws_symlink_farm_create test
     echo "hello" > "$HOME/.claude/CLAUDE.md"
