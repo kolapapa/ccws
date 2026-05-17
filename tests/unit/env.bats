@@ -76,3 +76,17 @@ EOF
     [[ "$status" -eq 0 ]]
     [[ "$output" == "https://example.com" ]]
 }
+
+@test "ccws_env_get rejects regex-shaped keys (injection prevention)" {
+    cat > "$HOME/.ccws/workspaces/test/ccws.env" <<'EOF'
+CCWS_NAME=test
+ANTHROPIC_BASE_URL=https://example.com
+EOF
+    # These should fail validation (not return any matched value)
+    run ccws_env_get test ".*"
+    [[ "$status" -ne 0 ]]
+    run ccws_env_get test "ANTHROPIC.*"
+    [[ "$status" -ne 0 ]]
+    run ccws_env_get test ".+"
+    [[ "$status" -ne 0 ]]
+}

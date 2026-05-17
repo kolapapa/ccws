@@ -61,8 +61,10 @@ ccws_env_read() {
 # Read a single key (without exporting). Echoes value or empty.
 ccws_env_get() {
     local name="$1" key="$2"
+    # Reject any key that isn't a valid identifier (prevents grep regex injection)
+    [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || return 1
     local envfile
     envfile=$(ccws_env_file "$name")
     [[ -f "$envfile" ]] || return 1
-    grep -E "^${key}=" "$envfile" | head -n1 | cut -d= -f2-
+    grep -m1 "^${key}=" "$envfile" | cut -d= -f2-
 }
