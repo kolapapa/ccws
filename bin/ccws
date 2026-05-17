@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# ccws — Claude Code WorkSpace dispatcher
+set -euo pipefail
+
+# Resolve project root from this script's location
+_self="${BASH_SOURCE[0]}"
+while [[ -L "$_self" ]]; do _self="$(readlink "$_self")"; done
+CCWS_DIR="$(cd "$(dirname "$_self")/.." && pwd)"
+export CCWS_DIR
+
+# shellcheck disable=SC1091
+source "$CCWS_DIR/lib/common.sh"
+# shellcheck disable=SC1091
+source "$CCWS_DIR/lib/env.sh"
+# shellcheck disable=SC1091
+source "$CCWS_DIR/lib/lock.sh"
+# shellcheck disable=SC1091
+source "$CCWS_DIR/lib/symlink_farm.sh"
+# shellcheck disable=SC1091
+source "$CCWS_DIR/lib/cmd_add.sh"
+# shellcheck disable=SC1091
+source "$CCWS_DIR/lib/cmd_list.sh"
+# shellcheck disable=SC1091
+source "$CCWS_DIR/lib/cmd_current.sh"
+# shellcheck disable=SC1091
+source "$CCWS_DIR/lib/cmd_use.sh"
+# shellcheck disable=SC1091
+source "$CCWS_DIR/lib/cmd_unset.sh"
+# shellcheck disable=SC1091
+source "$CCWS_DIR/lib/cmd_rm.sh"
+# shellcheck disable=SC1091
+source "$CCWS_DIR/lib/cmd_sync.sh"
+# shellcheck disable=SC1091
+source "$CCWS_DIR/lib/cmd_migrate.sh"
+# shellcheck disable=SC1091
+source "$CCWS_DIR/lib/cmd_doctor.sh"
+# shellcheck disable=SC1091
+source "$CCWS_DIR/lib/tui.sh"
+
+usage() {
+    cat <<'EOF'
+ccws — Claude Code WorkSpace · per-shell environment switcher
+
+Usage:
+  ccws                    Open interactive TUI picker (gum + fzf)
+  ccws add <name> [opts]  Create a workspace
+                          [--base-url URL] [--token TOK] [--binary PATH]
+  ccws use <name>         Activate workspace in current shell (via shell function)
+  ccws unset              Deactivate workspace in current shell
+  ccws list [--verbose]   List all workspaces
+  ccws current [--path]   Show currently active workspace
+  ccws rm <name> [-f]     Remove workspace
+  ccws migrate [--from FILE]
+                          Import workspaces from ~/.claude-profiles.conf
+  ccws doctor             Run health checks
+  ccws sync [<name>]      Re-link symlinks for one or all workspaces
+  ccws --no-tui           Bypass TUI when called without args
+  ccws --help             Show this help
+
+For 'use'/'unset' to affect your current shell, source share/init.sh
+(or share/init.fish for fish) in your rc.
+EOF
+}
+
+# Parse top-level flags
+no_tui=0
+if [[ "${1:-}" == "--no-tui" ]]; then
+    no_tui=1; shift
+fi
+
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+    "")
+        if [[ "$no_tui" -eq 1 ]]; then
+            usage
+        else
+            picked=$(ccws_tui_run) || exit $?
+            [[ -n "$picked" ]] && ccws_cmd_use_print_exports "$picked"
+        fi
+        exit $? ;;
+esac
+
+cmd="$1"; shift
+case "$cmd" in
+    add)      ccws_cmd_add "$@" ;;
+    list)     ccws_cmd_list "$@" ;;
+    current)  ccws_cmd_current "$@" ;;
+    rm)       ccws_cmd_rm "$@" ;;
+    sync)     ccws_cmd_sync "$@" ;;
+    migrate)  ccws_cmd_migrate "$@" ;;
+    doctor)   ccws_cmd_doctor "$@" ;;
+    use)      ccws_cmd_use_print_exports "$@" ;;
+    unset)    ccws_cmd_unset_print_exports ;;
+    --version|-V) echo "ccws 0.1.0-dev"; exit 0 ;;
+    *)        usage >&2; ccws_log_error "unknown command: $cmd"; exit 2 ;;
+esac
