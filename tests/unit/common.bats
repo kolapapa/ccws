@@ -48,6 +48,21 @@ teardown() {
     [[ "$status" -ne 0 ]]
 }
 
+@test "ccws_validate_name rejects reserved names" {
+    run ccws_validate_name "current"
+    [[ "$status" -ne 0 ]]
+    run ccws_validate_name "none"
+    [[ "$status" -ne 0 ]]
+    run ccws_validate_name "list"
+    [[ "$status" -ne 0 ]]
+    run ccws_validate_name "add"
+    [[ "$status" -ne 0 ]]
+    run ccws_validate_name "--help"
+    [[ "$status" -ne 0 ]]
+    run ccws_validate_name "-foo"
+    [[ "$status" -ne 0 ]]
+}
+
 @test "ccws_log_info prints to stderr" {
     run bash -c "
         source '$CCWS_PROJECT_ROOT/lib/common.sh'

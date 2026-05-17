@@ -2,8 +2,6 @@
 # Shared helpers for ccws.
 # Source-safe: defines functions, no side effects.
 
-set -o nounset
-
 # ----- Paths -----
 
 ccws_root() {
@@ -41,13 +39,13 @@ ccws_validate_name() {
         ccws_log_error "workspace name too long (max 64 chars)"
         return 1
     fi
-    if ! [[ "$name" =~ ^[A-Za-z0-9_-]+$ ]]; then
+    if ! [[ "$name" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]]; then
         ccws_log_error "workspace name must be [A-Za-z0-9_-]+"
         return 1
     fi
     # Reserved names that conflict with CLI semantics
     case "$name" in
-        current|none|default-tui|--*)
+        add|list|use|unset|current|rm|sync|migrate|doctor|tui|none|default-tui|--*)
             ccws_log_error "'$name' is a reserved name"
             return 1
             ;;
