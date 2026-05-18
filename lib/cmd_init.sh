@@ -131,12 +131,15 @@ EOF
     echo "[2/4] Installing slash commands..." >&2
 
     local share_dir
-    share_dir="$(cd "$_libdir/../share/commands" && pwd 2>/dev/null)"
-    if [[ -d "$share_dir" && -d "$real_claude/commands" ]]; then
+    share_dir="$(cd "$_libdir/../share/commands" 2>/dev/null && pwd)"
+    if [[ -d "$share_dir" ]]; then
+        # Create ~/.claude/commands/ if it doesn't exist yet (common for users
+        # whose Claude Code install never created it).
+        mkdir -p "$real_claude/commands"
         cp -n "$share_dir/"*.md "$real_claude/commands/" 2>/dev/null || true
         ccws_log_ok "installed /whoami and /switch to $real_claude/commands/"
     else
-        ccws_log_warn "could not install slash commands (share/commands missing or $real_claude/commands not writable)"
+        ccws_log_warn "could not install slash commands (share/commands not found at $_libdir/../share/commands)"
     fi
 
     # ===== Step 3: First new workspace =====

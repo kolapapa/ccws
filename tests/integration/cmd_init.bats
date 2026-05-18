@@ -81,6 +81,26 @@ teardown() {
     [[ "$output" == *"already initialized"* ]]
 }
 
+@test "ccws_cmd_init creates ~/.claude/commands/ if it doesn't exist (regression)" {
+    # Simulate user whose Claude Code install never created ~/.claude/commands/
+    rm -rf "$HOME/.claude/commands"
+    [[ ! -d "$HOME/.claude/commands" ]]
+    run bash -c "
+        export HOME='$HOME'
+        source '$CCWS_PROJECT_ROOT/lib/common.sh'
+        source '$CCWS_PROJECT_ROOT/lib/env.sh'
+        source '$CCWS_PROJECT_ROOT/lib/lock.sh'
+        source '$CCWS_PROJECT_ROOT/lib/symlink_farm.sh'
+        source '$CCWS_PROJECT_ROOT/lib/cmd_add.sh'
+        source '$CCWS_PROJECT_ROOT/lib/cmd_list.sh'
+        source '$CCWS_PROJECT_ROOT/lib/cmd_init.sh'
+        printf 'N\n\n' | ccws_cmd_init
+    "
+    [[ -d "$HOME/.claude/commands" ]]
+    [[ -f "$HOME/.claude/commands/whoami.md" ]]
+    [[ -f "$HOME/.claude/commands/switch.md" ]]
+}
+
 @test "ccws_cmd_init installs slash commands" {
     rm -rf "$HOME/.claude/commands"
     mkdir -p "$HOME/.claude/commands"
