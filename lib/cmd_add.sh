@@ -9,43 +9,27 @@ _libdir="$(dirname "${BASH_SOURCE[0]}")"
 [[ -z "${CCWS_SYMLINK_FARM_LOADED:-}"  ]] && source "$_libdir/symlink_farm.sh"
 
 ccws_cmd_add() {
-    # Interactive mode if no args
-    if [[ $# -eq 0 ]]; then
-        printf 'Workspace name: ' >&2
-        local _name
-        IFS= read -r _name
-        [[ -z "$_name" ]] && { ccws_log_error "name required"; return 2; }
-
-        printf 'Endpoint URL (Anthropic default, blank to use it): ' >&2
-        local _url
-        IFS= read -r _url
-
-        printf 'API token (paste, hidden; blank to skip): ' >&2
-        local _token
-        IFS= read -rs _token
-        echo "" >&2
-
-        printf 'Description (optional): ' >&2
-        local _desc
-        IFS= read -r _desc
-
-        local _args=("$_name")
-        [[ -n "$_url"   ]] && _args+=(--base-url "$_url")
-        [[ -n "$_token" ]] && _args+=(--token "$_token")
-        [[ -n "$_desc"  ]] && _args+=(--description "$_desc")
-
-        # Recurse with constructed args
-        ccws_cmd_add "${_args[@]}"
-        return $?
-    fi
-
-    # ===== existing logic continues unchanged below =====
+    # Parse args first; then prompt for any optional fields the user didn't
+    # provide on the command line (unless --non-interactive). This gives:
+    #   ccws add                              → prompts for everything
+    #   ccws add work                         → prompts for url/token/desc
+    #   ccws add work --base-url X            → prompts for token/desc
+    #   ccws add work --base-url X --token Y  → no prompts (scripted)
+    #   ccws add work --non-interactive       → no prompts (explicit)
     local name=""
     local args=()
+    # Track which optional fields the user provided via flags so we know
+    # which ones to prompt for. --binary is supported but not prompted
+    # for (rare setting; only users who know they need it pass --binary).
+    local has_base_url=0 has_token=0 has_description=0
+    local non_interactive=0
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --base-url|--token|--binary|--description)
-                args+=("$1" "$2"); shift 2 ;;
+            --base-url)        args+=("$1" "$2"); has_base_url=1;    shift 2 ;;
+            --token)           args+=("$1" "$2"); has_token=1;       shift 2 ;;
+            --binary)          args+=("$1" "$2");                    shift 2 ;;
+            --description)     args+=("$1" "$2"); has_description=1; shift 2 ;;
+            --non-interactive) non_interactive=1; shift ;;
             -*)
                 ccws_log_error "unknown flag: $1"; return 2 ;;
             *)
@@ -55,6 +39,39 @@ ccws_cmd_add() {
                 name="$1"; shift ;;
         esac
     done
+
+    # If no name given and not non-interactive, prompt for it.
+    if [[ -z "$name" && "$non_interactive" -eq 0 ]]; then
+        printf 'Workspace name: ' >&2
+        IFS= read -r name || true
+        [[ -z "$name" ]] && { ccws_log_error "name required"; return 2; }
+    fi
+
+    # Prompt for optional fields that weren't provided via flags
+    # (unless --non-interactive was set).
+    # `|| true` on each read: EOF returns 1, which under `set -e` (bats default)
+    # would abort the function. We want EOF to just mean "blank input".
+    if [[ "$non_interactive" -eq 0 ]]; then
+        if [[ "$has_base_url" -eq 0 ]]; then
+            printf 'Endpoint URL (Anthropic default, blank to skip): ' >&2
+            local _url=""
+            IFS= read -r _url || true
+            [[ -n "$_url" ]] && args+=(--base-url "$_url")
+        fi
+        if [[ "$has_token" -eq 0 ]]; then
+            printf 'API token (paste, hidden; blank to skip): ' >&2
+            local _token=""
+            IFS= read -rs _token || true
+            echo "" >&2
+            [[ -n "$_token" ]] && args+=(--token "$_token")
+        fi
+        if [[ "$has_description" -eq 0 ]]; then
+            printf 'Description (optional): ' >&2
+            local _desc=""
+            IFS= read -r _desc || true
+            [[ -n "$_desc" ]] && args+=(--description "$_desc")
+        fi
+    fi
 
     ccws_validate_name "$name" || return 2
 

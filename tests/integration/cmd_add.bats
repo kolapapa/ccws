@@ -57,3 +57,59 @@ teardown() {
     [[ "$status" -eq 0 ]]
     [[ "$output" == *"~/.claude"* ]] || [[ "$output" == *"doctor"* ]]
 }
+
+# === interactive prompt regression tests ===
+
+@test "ccws_cmd_add prompts for missing optional fields when only name given" {
+    # Regression for 0.3.1: 'ccws add deepseek' (name only) should prompt
+    # for URL/token/desc instead of silently creating an empty workspace.
+    run bash -c "
+        export HOME='$HOME'
+        source '$CCWS_PROJECT_ROOT/lib/common.sh'
+        source '$CCWS_PROJECT_ROOT/lib/env.sh'
+        source '$CCWS_PROJECT_ROOT/lib/lock.sh'
+        source '$CCWS_PROJECT_ROOT/lib/symlink_farm.sh'
+        source '$CCWS_PROJECT_ROOT/lib/cmd_add.sh'
+        printf 'https://api.deepseek.com/anthropic\nsk-test\nMy deepseek\n' | ccws_cmd_add deepseek
+    "
+    [[ "$status" -eq 0 ]]
+    local env
+    env=$(cat "$HOME/.ccws/workspaces/deepseek/ccws.env")
+    [[ "$env" == *"ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic"* ]]
+    [[ "$env" == *"ANTHROPIC_AUTH_TOKEN=sk-test"* ]]
+    [[ "$env" == *"CCWS_DESCRIPTION=My deepseek"* ]]
+}
+
+@test "ccws_cmd_add --non-interactive skips all prompts" {
+    run bash -c "
+        export HOME='$HOME'
+        source '$CCWS_PROJECT_ROOT/lib/common.sh'
+        source '$CCWS_PROJECT_ROOT/lib/env.sh'
+        source '$CCWS_PROJECT_ROOT/lib/lock.sh'
+        source '$CCWS_PROJECT_ROOT/lib/symlink_farm.sh'
+        source '$CCWS_PROJECT_ROOT/lib/cmd_add.sh'
+        ccws_cmd_add scripted --non-interactive
+    "
+    [[ "$status" -eq 0 ]]
+    [[ -d "$HOME/.ccws/workspaces/scripted" ]]
+    [[ "$output" != *"Endpoint URL"* ]]
+    [[ "$output" != *"API token"* ]]
+}
+
+@test "ccws_cmd_add only prompts for fields not provided as flags" {
+    # URL given via flag → only token+desc prompted
+    run bash -c "
+        export HOME='$HOME'
+        source '$CCWS_PROJECT_ROOT/lib/common.sh'
+        source '$CCWS_PROJECT_ROOT/lib/env.sh'
+        source '$CCWS_PROJECT_ROOT/lib/lock.sh'
+        source '$CCWS_PROJECT_ROOT/lib/symlink_farm.sh'
+        source '$CCWS_PROJECT_ROOT/lib/cmd_add.sh'
+        printf 'sk-mixed\nmixed description\n' | ccws_cmd_add mixed --base-url 'https://foo.com'
+    "
+    [[ "$status" -eq 0 ]]
+    local env
+    env=$(cat "$HOME/.ccws/workspaces/mixed/ccws.env")
+    [[ "$env" == *"ANTHROPIC_BASE_URL=https://foo.com"* ]]
+    [[ "$env" == *"ANTHROPIC_AUTH_TOKEN=sk-mixed"* ]]
+}
