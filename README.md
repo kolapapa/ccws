@@ -21,17 +21,91 @@ If you have multiple Claude Code accounts (work, personal, third-party gateway l
 
 ccws complements cc-switch — different problem, different solution.
 
+## Quick start — from zero to multi-account `claude` in 5 steps
+
+```bash
+# 1. Clone + machine install (PATH symlink + shell rc lines + claude wrapper)
+git clone https://github.com/kolapapa/ccws ~/workspace/ccws
+cd ~/workspace/ccws && ./install.sh --with-claude-wrapper
+
+# 2. Restart shell (open a new terminal — don't just `source ~/.zshrc`,
+#    because old `claude` shell functions stay in memory)
+
+# 3. First-time user-config setup (slash commands + optional first workspace)
+ccws init
+
+# 4. Add an account (interactive — prompts for endpoint, token, proxy)
+ccws add work
+#  or one-liner:
+ccws add work --base-url https://api.anthropic.com --token sk-... --proxy http://127.0.0.1:7890
+
+# 5. Activate in this shell and launch
+ccws use work && claude
+
+# 6 (bonus). Pin a workspace to a directory (pyenv-style):
+cd ~/projects/personal && ccws local personal
+claude    # auto-uses 'personal' because the wrapper resolves .ccws-workspace
+```
+
+Each step modifies a different scope — see [Lifecycle at a glance](#lifecycle-at-a-glance) below for the full picture.
+
 ## Install
 
 ```bash
-git clone https://github.com/kolapapa/ccws ~/workspace/ccws
-cd ~/workspace/ccws
-./install.sh             # PATH + shell rc only
-# Restart your shell (or `source ~/.zshrc`)
-ccws init                # interactive setup wizard
+./install.sh                       # bare install
+./install.sh --with-claude-wrapper # also enable opt-in claude() wrapper (recommended)
+./install.sh --no-shell-rc         # PATH only, don't touch ~/.zshrc / ~/.bashrc
+./install.sh --help
 ```
 
-Optional deps for nicer TUI: `brew install gum fzf`
+What `install.sh` does:
+
+1. Symlinks `bin/ccws` → `~/.local/bin/ccws` (so `ccws` is on PATH)
+2. Appends to `~/.zshrc` / `~/.bashrc` / `~/.config/fish/config.fish`:
+   ```bash
+   # ccws — Claude Code WorkSpace
+   eval "$(ccws hook --shell zsh)"
+   # Uncomment to let 'claude' auto-resolve .ccws-workspace / global:
+   # eval "$(ccws hook --claude)"
+   ```
+3. With `--with-claude-wrapper`, the second line is **uncommented** so the `claude` wrapper is active out of the box
+4. Detects `fzf` / `gum` and prints install hints if missing (optional — TUI falls back to pure bash)
+
+The shell rc append is **idempotent** — re-running `install.sh` won't add duplicate lines. If you previously had a legacy `source .../share/init.sh` line (from ccws ≤ v0.4.0), install.sh leaves it alone and warns; you can replace it manually with the modern `ccws hook` form.
+
+### Why `--with-claude-wrapper`?
+
+Without it: `claude` runs the real binary. You must `ccws use <name>` first in each shell to pick a workspace.
+
+With it: when you run `claude`, the wrapper checks if a workspace is implicitly set via `.ccws-workspace` (in `$PWD` or any parent) or `~/.ccws/global`. If yes, it runs claude in a subshell with that workspace's env — **without mutating your shell**. Like `pyenv` shims `python`.
+
+Conflict warning: if you have an existing `claude` shell function (e.g. from a custom `~/.zsh/claude.sh` profile manager), the ccws wrapper will replace it. Comment out the old `source` line first.
+
+Optional dependencies for a nicer TUI: `brew install fzf gum`
+
+## Lifecycle at a glance
+
+| Step | Command | What it modifies | When you run it |
+|---|---|---|---|
+| **1. Install** | `./install.sh [--with-claude-wrapper]` | `~/.local/bin/ccws` symlink · `~/.zshrc` (hook lines) | Once per machine |
+| **2. Init** | `ccws init` | `~/.claude/commands/{whoami,switch}.md` · optionally `~/.claude/` itself | Once per user |
+| **3. Add workspace** | `ccws add NAME [...]` | `~/.ccws/workspaces/NAME/` (env + symlinks) | Once per account |
+| **4. Activate (per-shell)** | `ccws use NAME` | Current shell's env vars (`CLAUDE_CONFIG_DIR`, `ANTHROPIC_*`, proxy…) | Each switch |
+| **4b. Or pin (per-dir)** | `ccws local NAME` | `.ccws-workspace` file in `$PWD` | Once per project dir |
+| **4c. Or pin (per-user)** | `ccws global NAME` | `~/.ccws/global` | Once, as a default |
+| **5. Run** | `claude` | (just runs claude; wrapper auto-resolves if `--with-claude-wrapper`) | Daily |
+| **6. Inspect / maintain** | `ccws list` · `ccws which` · `ccws doctor` · `ccws sync` | (reads only) | As needed |
+
+Each step touches a different layer:
+
+```
+machine-level     ./install.sh           → ~/.local/bin/ + ~/.zshrc
+user-config       ccws init              → ~/.claude/commands/
+workspace-config  ccws add <name>        → ~/.ccws/workspaces/<name>/
+shell-scope       ccws use <name>        → THIS shell's env
+dir-scope         ccws local <name>      → ./.ccws-workspace
+user-default      ccws global <name>     → ~/.ccws/global
+```
 
 ## First-time setup · `ccws init`
 
@@ -102,30 +176,37 @@ ccws use $(ccws which)
 
 For automatic activation (so `claude` in any directory auto-picks up the scope), see the `claude` wrapper section below.
 
-## `claude` wrapper (opt-in auto-activation)
+## `claude` wrapper · how auto-activation works
 
-When enabled, the `claude` command auto-resolves the current scope and runs Claude Code with that workspace's env — without permanently mutating your shell. Like `pyenv` shims `python`.
+Enabled by `./install.sh --with-claude-wrapper` (or manually via `eval "$(ccws hook --claude)"` in your rc). Once enabled, every `claude` invocation goes through this resolution chain:
 
-Enable in `~/.zshrc` (or `~/.bashrc`):
-
-```bash
-eval "$(ccws hook --shell zsh)"     # ccws() function
-eval "$(ccws hook --claude)"        # claude() wrapper
+```
+1. CCWS_NAME already set? (you ran `ccws use foo`)   → just exec real claude
+2. .ccws-workspace found in $PWD or any parent?     → spawn subshell with that workspace, exec claude
+3. ~/.ccws/global is set?                            → spawn subshell with that workspace, exec claude
+4. Nothing matches                                    → exec real claude (uses ~/.claude/)
 ```
 
-Now:
+Steps 2 and 3 spawn a **subshell** — your parent shell's `$ANTHROPIC_BASE_URL` etc. stay untouched. This is pyenv's shim model.
 
 ```bash
-cd ~/work/projectA && claude      # uses .ccws-workspace's workspace
-cd ~/personal && claude           # uses .ccws-workspace's workspace (different!)
-cd /tmp && claude                 # uses ~/.ccws/global or plain ~/.claude/
+cd ~/work/projectA && claude      # uses ./.ccws-workspace's workspace
+cd ~/personal && claude           # uses different workspace
+cd /tmp && claude                 # uses ~/.ccws/global, or plain claude
 
-# Override in current shell (highest priority):
+# Explicit shell override always wins:
 ccws use company
 claude                            # uses company regardless of $PWD
 ```
 
-The wrapper does NOT modify your parent shell's env — `echo $ANTHROPIC_BASE_URL` after `claude` exits will show whatever was there before.
+To check what would be picked up right now:
+
+```bash
+ccws which              # prints the workspace name (scriptable)
+ccws which --explain    # also prints which scope (shell / local:/path / global)
+```
+
+To enable later (without re-running install.sh): edit `~/.zshrc`, uncomment the line `eval "$(ccws hook --claude)"`, restart shell.
 
 ## Proxy per workspace
 
