@@ -50,23 +50,19 @@ ccws_tui_fallback_pick() {
             printf -v name_pad '%*s' $((14 - ${#n})) ""
         fi
 
-        # Endpoint color + width
-        local ep_color e_short="$e"
-        if [[ "$e" == "anthropic" ]]; then
-            ep_color="$sky"
-        elif [[ "$e" == *"deepseek"* ]]; then
-            ep_color="$yellow"
-        else
-            ep_color="$sky"
-        fi
-        # Truncate long endpoint URLs to fit
-        if [[ ${#e_short} -gt 40 ]]; then
-            e_short="${e_short:0:37}..."
-        fi
+        # Endpoint: normalized short label + truncated to column + colored by family
+        local e_short
+        e_short=$(ccws_tui_short_endpoint "$e")
+        local ep_w=24
+        e_short=$(ccws_tui_truncate "$e_short" "$ep_w")
+        local ep_color
+        case "$e_short" in
+            anthropic)                  ep_color="$sky" ;;
+            deepseek-gw|openai-gw|*-gw) ep_color="$yellow" ;;
+            *)                          ep_color="$pink" ;;
+        esac
         local ep_pad=""
-        if [[ ${#e_short} -lt 40 ]]; then
-            printf -v ep_pad '%*s' $((40 - ${#e_short})) ""
-        fi
+        [[ ${#e_short} -lt $ep_w ]] && printf -v ep_pad '%*s' $((ep_w - ${#e_short})) ""
 
         # Proxy mark
         local proxy_disp

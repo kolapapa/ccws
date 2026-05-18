@@ -36,6 +36,36 @@ teardown() {
     echo "$output" | grep "work" | grep -q " off "
 }
 
+@test "ccws_tui_short_endpoint normalizes URLs to short labels" {
+    run ccws_tui_short_endpoint "https://api.anthropic.com"
+    [[ "$output" == "anthropic" ]]
+
+    run ccws_tui_short_endpoint ""
+    [[ "$output" == "anthropic" ]]
+
+    run ccws_tui_short_endpoint "https://api.deepseek.com/anthropic"
+    [[ "$output" == "deepseek-gw" ]]
+
+    run ccws_tui_short_endpoint "https://api.openai.com"
+    [[ "$output" == "openai-gw" ]]
+
+    run ccws_tui_short_endpoint "https://claude-proxy.example.internal"
+    [[ "$output" == "claude-proxy.example.internal" ]]
+
+    # URL with path strips path
+    run ccws_tui_short_endpoint "https://gateway.example.com/v1/api"
+    [[ "$output" == "gateway.example.com" ]]
+}
+
+@test "ccws_tui_truncate fits a string to N columns with ellipsis" {
+    run ccws_tui_truncate "shortname" 20
+    [[ "$output" == "shortname" ]]
+
+    run ccws_tui_truncate "this-is-a-rather-long-host.example.com" 20
+    [[ ${#output} -le 20 ]]
+    [[ "$output" == *"…" ]]
+}
+
 @test "ccws_tui_collect_workspaces returns empty when no workspaces" {
     rm -rf "$HOME/.ccws"
     run ccws_tui_collect_workspaces
