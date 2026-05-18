@@ -31,8 +31,6 @@ source "$CCWS_DIR/lib/cmd_rm.sh"
 # shellcheck disable=SC1091
 source "$CCWS_DIR/lib/cmd_sync.sh"
 # shellcheck disable=SC1091
-source "$CCWS_DIR/lib/cmd_migrate.sh"
-# shellcheck disable=SC1091
 source "$CCWS_DIR/lib/cmd_doctor.sh"
 # shellcheck disable=SC1091
 source "$CCWS_DIR/lib/tui.sh"
@@ -50,8 +48,6 @@ Usage:
   ccws list [--verbose]   List all workspaces
   ccws current [--path]   Show currently active workspace
   ccws rm <name> [-f]     Remove workspace
-  ccws migrate [--from FILE]
-                          Import workspaces from ~/.claude-profiles.conf
   ccws doctor             Run health checks
   ccws sync [<name>]      Re-link symlinks for one or all workspaces
   ccws --no-tui           Bypass TUI when called without args
@@ -87,10 +83,9 @@ case "$cmd" in
     current)  ccws_cmd_current "$@" ;;
     rm)       ccws_cmd_rm "$@" ;;
     sync)     ccws_cmd_sync "$@" ;;
-    migrate)  ccws_cmd_migrate "$@" ;;
     doctor)   ccws_cmd_doctor "$@" ;;
     use)      ccws_cmd_use_print_exports "$@" ;;
     unset)    ccws_cmd_unset_print_exports ;;
-    --version|-V) echo "ccws 0.1.0"; exit 0 ;;
+    --version|-V) echo "ccws 0.1.1"; exit 0 ;;
     *)        usage >&2; ccws_log_error "unknown command: $cmd"; exit 2 ;;
 esac

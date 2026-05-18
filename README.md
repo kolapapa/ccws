@@ -16,8 +16,8 @@ If you have multiple Claude Code accounts (work, personal, third-party gateway l
 | Tool | What it does | Different from ccws |
 |---|---|---|
 | [cc-switch](https://github.com/farion1231/cc-switch) (73k★) | GUI account manager | Switches one account at a time, globally |
-| [claude-account-switcher](https://github.com/ukogan/claude-account-switcher) (2★) | CLI account isolation | No multi-endpoint, no migrate, no fish |
-| ccws (this) | CLI + TUI + multi-endpoint + migrate + doctor + fish | Designed for terminal-heavy concurrent use |
+| [claude-account-switcher](https://github.com/ukogan/claude-account-switcher) (2★) | CLI account isolation | No multi-endpoint, no fish |
+| ccws (this) | CLI + TUI + multi-endpoint + doctor + fish | Designed for terminal-heavy concurrent use |
 
 ccws complements cc-switch — different problem, different solution.
 
@@ -50,10 +50,6 @@ $ ccws doctor
 
 # In another terminal, simultaneously:
 $ ccws use personal && claude  # different account, same time, no conflict
-
-# Migrate from existing setup:
-$ ccws migrate                  # reads ~/.claude-profiles.conf
-$ ccws migrate --from ~/myconf  # custom file
 ```
 
 ## What it looks like
@@ -152,23 +148,6 @@ summary: 0 warning(s), 0 error(s)
 
 Color-coded: `✓` green ok · `!` yellow warning · `✗` red error.
 
-### `ccws migrate` (auto-import existing setup)
-
-```
-$ ccws migrate
-ccws: ok: created workspace 'company' at ~/.ccws/workspaces/company
-ccws: ok: created workspace 'gradient' at ~/.ccws/workspaces/gradient
-ccws: ok: created workspace 'deepseek' at ~/.ccws/workspaces/deepseek
-
-=== migrate summary ===
-company: imported (source=/Users/kola/.claude-company)
-gradient:  imported (source=/Users/kola/.claude-gradient)
-deepseek:  imported (source=/Users/kola/.claude-deepseek)
-imported: 3  empty: 0  skipped: 0
-```
-
-If a source dir doesn't exist on disk, ccws creates an **empty workspace** with the same name (you can fill it in later).
-
 ## Architecture
 
 - Each workspace is a directory at `~/.ccws/workspaces/<name>/` and serves as `CLAUDE_CONFIG_DIR`
@@ -187,8 +166,6 @@ ccws unset              Deactivate workspace in current shell
 ccws list [--verbose]   List all workspaces
 ccws current [--path]   Show currently active workspace
 ccws rm <name> [-f]     Remove workspace
-ccws migrate [--from FILE]
-                        Import workspaces from ~/.claude-profiles.conf
 ccws doctor             Run health checks
 ccws sync [<name>]      Re-link symlinks for one or all workspaces
 ccws --no-tui           Bypass TUI when called without args
