@@ -18,7 +18,10 @@ teardown() {
     teardown_fake_home
 }
 
-@test "ccws_cmd_init adopts ~/.claude/ as default workspace (when answered Y)" {
+# === ~/.claude/ exists: init creates NO workspace unless user names one ===
+
+@test "ccws_cmd_init creates no workspace when first-workspace prompt is blank" {
+    # ~/.claude/ exists via setup_fake_home; user gives blank name → no workspace
     run bash -c "
         export HOME='$HOME'
         source '$CCWS_PROJECT_ROOT/lib/common.sh'
@@ -28,13 +31,17 @@ teardown() {
         source '$CCWS_PROJECT_ROOT/lib/cmd_add.sh'
         source '$CCWS_PROJECT_ROOT/lib/cmd_list.sh'
         source '$CCWS_PROJECT_ROOT/lib/cmd_init.sh'
-        printf 'Y\n\n' | ccws_cmd_init
+        printf '\n' | ccws_cmd_init
     "
     [[ "$status" -eq 0 ]]
-    [[ -d "$HOME/.ccws/workspaces/default" ]]
+    # ~/.ccws/workspaces/ exists but empty
+    [[ -d "$HOME/.ccws/workspaces" ]]
+    [[ -z "$(ls -A "$HOME/.ccws/workspaces" 2>/dev/null)" ]]
+    # 'default' should NOT be auto-created (the whole point of the redesign)
+    [[ ! -d "$HOME/.ccws/workspaces/default" ]]
 }
 
-@test "ccws_cmd_init creates additional workspace when name provided" {
+@test "ccws_cmd_init creates only the user-named workspace, never 'default'" {
     run bash -c "
         export HOME='$HOME'
         source '$CCWS_PROJECT_ROOT/lib/common.sh'
@@ -44,23 +51,10 @@ teardown() {
         source '$CCWS_PROJECT_ROOT/lib/cmd_add.sh'
         source '$CCWS_PROJECT_ROOT/lib/cmd_list.sh'
         source '$CCWS_PROJECT_ROOT/lib/cmd_init.sh'
-        printf 'Y\nwork\n\n\n' | ccws_cmd_init
+        # name=work, blank URL, blank token
+        printf 'work\n\n\n' | ccws_cmd_init
     "
     [[ -d "$HOME/.ccws/workspaces/work" ]]
-}
-
-@test "ccws_cmd_init skips ~/.claude/ adoption when answered N" {
-    run bash -c "
-        export HOME='$HOME'
-        source '$CCWS_PROJECT_ROOT/lib/common.sh'
-        source '$CCWS_PROJECT_ROOT/lib/env.sh'
-        source '$CCWS_PROJECT_ROOT/lib/lock.sh'
-        source '$CCWS_PROJECT_ROOT/lib/symlink_farm.sh'
-        source '$CCWS_PROJECT_ROOT/lib/cmd_add.sh'
-        source '$CCWS_PROJECT_ROOT/lib/cmd_list.sh'
-        source '$CCWS_PROJECT_ROOT/lib/cmd_init.sh'
-        printf 'N\n\n' | ccws_cmd_init
-    "
     [[ ! -d "$HOME/.ccws/workspaces/default" ]]
 }
 
@@ -82,7 +76,6 @@ teardown() {
 }
 
 @test "ccws_cmd_init creates ~/.claude/commands/ if it doesn't exist (regression)" {
-    # Simulate user whose Claude Code install never created ~/.claude/commands/
     rm -rf "$HOME/.claude/commands"
     [[ ! -d "$HOME/.claude/commands" ]]
     run bash -c "
@@ -94,27 +87,9 @@ teardown() {
         source '$CCWS_PROJECT_ROOT/lib/cmd_add.sh'
         source '$CCWS_PROJECT_ROOT/lib/cmd_list.sh'
         source '$CCWS_PROJECT_ROOT/lib/cmd_init.sh'
-        printf 'N\n\n' | ccws_cmd_init
+        printf '\n' | ccws_cmd_init
     "
     [[ -d "$HOME/.claude/commands" ]]
-    [[ -f "$HOME/.claude/commands/whoami.md" ]]
-    [[ -f "$HOME/.claude/commands/switch.md" ]]
-}
-
-@test "ccws_cmd_init installs slash commands" {
-    rm -rf "$HOME/.claude/commands"
-    mkdir -p "$HOME/.claude/commands"
-    run bash -c "
-        export HOME='$HOME'
-        source '$CCWS_PROJECT_ROOT/lib/common.sh'
-        source '$CCWS_PROJECT_ROOT/lib/env.sh'
-        source '$CCWS_PROJECT_ROOT/lib/lock.sh'
-        source '$CCWS_PROJECT_ROOT/lib/symlink_farm.sh'
-        source '$CCWS_PROJECT_ROOT/lib/cmd_add.sh'
-        source '$CCWS_PROJECT_ROOT/lib/cmd_list.sh'
-        source '$CCWS_PROJECT_ROOT/lib/cmd_init.sh'
-        printf 'Y\n\n' | ccws_cmd_init
-    "
     [[ -f "$HOME/.claude/commands/whoami.md" ]]
     [[ -f "$HOME/.claude/commands/switch.md" ]]
 }
@@ -134,7 +109,7 @@ teardown() {
         source '$CCWS_PROJECT_ROOT/lib/cmd_add.sh'
         source '$CCWS_PROJECT_ROOT/lib/cmd_list.sh'
         source '$CCWS_PROJECT_ROOT/lib/cmd_init.sh'
-        # Answer N to '[b]' prompt → cancel
+        # Answer N to bootstrap prompt → cancel
         printf 'N\n' | ccws_cmd_init
     "
     [[ "$status" -eq 0 ]]
@@ -168,4 +143,6 @@ teardown() {
     [[ -f "$HOME/.claude/settings.json" ]]
     [[ -f "$HOME/.claude/commands/whoami.md" ]]
     [[ -f "$HOME/.claude/commands/switch.md" ]]
+    # NO 'default' workspace
+    [[ ! -d "$HOME/.ccws/workspaces/default" ]]
 }

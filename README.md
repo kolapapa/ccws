@@ -35,12 +35,18 @@ Optional deps for nicer TUI: `brew install gum fzf`
 
 ## First-time setup · `ccws init`
 
-`ccws init` is the entry point for new users. It walks you through:
+`ccws init` is the entry point for new users. 3 steps:
 
-1. **Detect existing `~/.claude/`** — if found, optionally adopt as a `default` workspace
+1. **Detect `~/.claude/`** — if present, your existing setup stays as-is (plain `claude` keeps using it). If missing, optionally bootstrap an empty `~/.claude/` as the shared plugin store
 2. **Install slash commands** `/whoami` and `/switch` into `~/.claude/commands/`
-3. **Create your first new workspace** — name, endpoint, token (e.g. for a second account or DeepSeek gateway)
-4. **Summary** — workspaces created, what to do next
+3. **Optionally add your first workspace** — for a different account or gateway (Anthropic / DeepSeek / Kimi / etc.). You choose the name (no auto `default`)
+
+ccws doesn't auto-create a "default" workspace. Existing `~/.claude/` stays as your unmanaged primary; ccws only manages workspaces you explicitly name. Mental model:
+
+| | Node | Claude Code |
+|---|---|---|
+| System default | `node` (system install) | `claude` (uses `~/.claude/`) |
+| Managed alternates | `nvm use 18 && node` | `ccws use work && claude` |
 
 Idempotent: re-running shows status instead of repeating setup. Use `ccws init --reset` to wipe and restart.
 

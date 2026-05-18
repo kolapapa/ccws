@@ -85,8 +85,8 @@ EOF
     # Bootstrap ~/.ccws structure
     mkdir -p "$ccws_dir/workspaces"
 
-    # ===== Step 1: ~/.claude/ detection =====
-    echo "[1/4] Checking ~/.claude/..." >&2
+    # ===== Step 1: ~/.claude/ detection (informational + optional bootstrap) =====
+    echo "[1/3] Checking ~/.claude/..." >&2
     echo "" >&2
 
     local real_claude
@@ -98,25 +98,20 @@ EOF
         [[ -d "$real_claude/skills" ]] && skills_count=$(find "$real_claude/skills" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')
 
         echo "  ✓ Found existing Claude Code install at $real_claude" >&2
-        echo "    plugins: $plugins_count · skills: $skills_count · symlinks below" >&2
-        echo "    These will be shared across all workspaces (single source of truth)." >&2
+        echo "    plugins: $plugins_count · skills: $skills_count" >&2
         echo "" >&2
-
-        if _ccws_init_prompt_yn "  Adopt ~/.claude/ as 'default' workspace?"; then
-            if ! ccws_cmd_add default --description "adopted from $real_claude" >/dev/null 2>&1; then
-                ccws_log_warn "'default' workspace may already exist or be invalid; continuing"
-            fi
-            ccws_log_ok "adopted as workspace 'default'"
-        fi
+        echo "    Your existing setup stays as-is. Plain 'claude' keeps using it" >&2
+        echo "    with your current account." >&2
+        echo "    ccws is for ADDITIONAL workspaces (other accounts / gateways)." >&2
+        echo "    All workspaces share plugins/skills from ~/.claude/." >&2
     else
         echo "  ! No ~/.claude/ found." >&2
         echo "" >&2
-        echo "  ccws shares plugins/skills/settings from ~/.claude/ across workspaces." >&2
-        echo "  Two options:" >&2
-        echo "    [a] Cancel init now, run 'claude' once to bootstrap ~/.claude/, then re-run 'ccws init'" >&2
-        echo "    [b] Let ccws create empty ~/.claude/ as the plugin store" >&2
+        echo "  ccws needs ~/.claude/ as the shared plugin store. Two options:" >&2
+        echo "    [a] Cancel — run 'claude' once first to bootstrap, then re-run 'ccws init'" >&2
+        echo "    [b] Bootstrap empty ~/.claude/ now" >&2
         echo "" >&2
-        if _ccws_init_prompt_yn "  Create empty ~/.claude/ now? (option [b])" N; then
+        if _ccws_init_prompt_yn "  Bootstrap empty ~/.claude/?" N; then
             mkdir -p "$real_claude/commands" "$real_claude/plugins" "$real_claude/skills" "$real_claude/hooks"
             echo '{}' > "$real_claude/settings.json"
             ccws_log_ok "created empty $real_claude/"
@@ -128,7 +123,7 @@ EOF
 
     # ===== Step 2: Slash commands =====
     echo "" >&2
-    echo "[2/4] Installing slash commands..." >&2
+    echo "[2/3] Installing slash commands..." >&2
 
     local share_dir
     share_dir="$(cd "$_libdir/../share/commands" 2>/dev/null && pwd)"
@@ -144,7 +139,7 @@ EOF
 
     # ===== Step 3: First new workspace =====
     echo "" >&2
-    echo "[3/4] Create another workspace?" >&2
+    echo "[3/3] Add your first workspace?" >&2
     echo "      (for a different account or endpoint — leave blank to skip)" >&2
     echo "" >&2
 
@@ -158,11 +153,9 @@ EOF
         IFS= read -r first_url
 
         local first_token=""
-        if [[ -n "$first_url" || -z "$first_url" ]]; then
-            printf '  API token (paste, hidden; blank to skip — login later): ' >&2
-            IFS= read -rs first_token
-            echo "" >&2
-        fi
+        printf '  API token (paste, hidden; blank to skip — login later): ' >&2
+        IFS= read -rs first_token
+        echo "" >&2
 
         local add_args=("$first_name")
         [[ -n "$first_url"   ]] && add_args+=(--base-url "$first_url")
@@ -177,9 +170,9 @@ EOF
         echo "  (skipped)" >&2
     fi
 
-    # ===== Step 4: Done =====
+    # ===== Done =====
     echo "" >&2
-    echo "[4/4] Setup complete." >&2
+    echo "Setup complete." >&2
     echo "" >&2
     echo "Workspaces:" >&2
     ccws_cmd_list 2>&1 || true
