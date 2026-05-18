@@ -25,6 +25,31 @@ teardown() {
     " | grep -q "ccws is a function"
 }
 
+@test "share/init.sh resolves CCWS_DIR correctly under zsh (regression for BASH_SOURCE bug)" {
+    if ! command -v zsh >/dev/null 2>&1; then
+        skip "zsh not installed"
+    fi
+    # Source from a working directory that is NOT the project — exposes
+    # the `dirname ""` collapsing-to-`.` bug.
+    result=$(zsh -c "
+        cd /tmp
+        unset CCWS_DIR
+        source '$CCWS_PROJECT_ROOT/share/init.sh'
+        echo \"\$CCWS_DIR\"
+    ")
+    [[ "$result" == "$CCWS_PROJECT_ROOT" ]]
+}
+
+@test "share/init.sh resolves CCWS_DIR correctly under bash from arbitrary cwd" {
+    result=$(bash -c "
+        cd /tmp
+        unset CCWS_DIR
+        source '$CCWS_PROJECT_ROOT/share/init.sh'
+        echo \"\$CCWS_DIR\"
+    ")
+    [[ "$result" == "$CCWS_PROJECT_ROOT" ]]
+}
+
 @test "ccws use exports CLAUDE_CONFIG_DIR in current shell" {
     result=$(bash -c "
         export HOME='$HOME'

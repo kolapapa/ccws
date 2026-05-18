@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
 # ccws shell init — source this from ~/.bashrc or ~/.zshrc.
 
-# Resolve CCWS_DIR if not already set
+# Resolve CCWS_DIR if not already set.
+# zsh doesn't populate BASH_SOURCE the same way — fall back to $0,
+# which in zsh is the script path when sourced. In bash, BASH_SOURCE[0]
+# is the safer reference (because $0 can be the parent shell name).
 if [[ -z "${CCWS_DIR:-}" ]]; then
-    CCWS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    if [[ -n "${BASH_VERSION:-}" ]]; then
+        _ccws_src="${BASH_SOURCE[0]}"
+    else
+        # zsh / others: $0 when sourced points at this file
+        _ccws_src="$0"
+    fi
+    CCWS_DIR="$(cd "$(dirname "$_ccws_src")/.." && pwd)"
     export CCWS_DIR
+    unset _ccws_src
 fi
 
 ccws() {
