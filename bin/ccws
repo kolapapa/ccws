@@ -92,6 +92,6 @@ case "$cmd" in
     doctor)   ccws_cmd_doctor "$@" ;;
     use)      ccws_cmd_use_print_exports "$@" ;;
     unset)    ccws_cmd_unset_print_exports ;;
-    --version|-V) echo "ccws 0.2.3"; exit 0 ;;
+    --version|-V) echo "ccws 0.2.4"; exit 0 ;;
     *)        usage >&2; ccws_log_error "unknown command: $cmd"; exit 2 ;;
 esac
