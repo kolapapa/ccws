@@ -18,6 +18,18 @@ ccws_tui_fzf_pick() {
     # Column widths (plain-text, before colorization)
     local name_w=12 ep_w=24
 
+    # Pre-assign ANSI escapes to plain vars BEFORE any `case` statement uses
+    # them — bash 3.2 (macOS /bin/bash) mis-parses semicolons inside
+    # $'\033[38;2;R;G;Bm' literals when they appear directly in case arms.
+    local c_pink=$'\033[38;2;245;194;231m'
+    local c_green=$'\033[38;2;166;227;161m'
+    local c_green_bold=$'\033[38;2;166;227;161;1m'
+    local c_sky=$'\033[38;2;137;220;235m'
+    local c_yellow=$'\033[38;2;249;226;175m'
+    local c_lavender=$'\033[38;2;180;190;254m'
+    local c_dim=$'\033[38;2;108;112;134m'
+    local c_rs=$'\033[0m'
+
     # Build rendered rows. We compute padding on the PLAIN text length, then
     # wrap each cell in its ANSI colors. Otherwise printf's %-N format counts
     # the escape bytes and the column boundaries collapse.
@@ -44,34 +56,37 @@ ccws_tui_fzf_pick() {
             # Marker + name color
             local marker name_color
             if [[ "${CCWS_NAME:-}" == "$name" ]]; then
-                marker=$'\033[38;2;166;227;161m▸\033[0m'    # green
-                name_color=$'\033[38;2;166;227;161;1m'      # bold green
+                marker="${c_green}▸${c_rs}"
+                name_color="$c_green_bold"
             else
                 marker=' '
-                name_color=$'\033[38;2;245;194;231m'        # pink
+                name_color="$c_pink"
             fi
 
-            # Endpoint color (yellow for gateway-style, sky for anthropic-style)
+            # Endpoint color. NOTE: must be if/elif (NOT case) — bash 3.2 on
+            # macOS has a known parser bug where `case ... esac` inside `$(...)`
+            # command substitution is rejected with "syntax error near `;;'".
             local ep_color
-            case "$ep_short" in
-                anthropic)            ep_color=$'\033[38;2;137;220;235m' ;;
-                deepseek-gw|openai-gw|*-gw) ep_color=$'\033[38;2;249;226;175m' ;;
-                *)                    ep_color=$'\033[38;2;180;190;254m' ;;  # lavender for custom hosts
-            esac
-            local rs=$'\033[0m'
+            if [[ "$ep_short" == "anthropic" ]]; then
+                ep_color="$c_sky"
+            elif [[ "$ep_short" == *-gw ]]; then
+                ep_color="$c_yellow"
+            else
+                ep_color="$c_lavender"
+            fi
 
             # Proxy badge
             local proxy_disp
             if [[ "$proxy" == "on" ]]; then
-                proxy_disp=$'\033[38;2;166;227;161m● proxy \033[0m'
+                proxy_disp="${c_green}● proxy ${c_rs}"
             else
-                proxy_disp=$'\033[38;2;108;112;134m○ direct\033[0m'
+                proxy_disp="${c_dim}○ direct${c_rs}"
             fi
 
             printf ' %s %s%s%s%s  %s%s%s%s  %s\n' \
                 "$marker" \
-                "$name_color" "$name_disp" "$rs" "$name_pad" \
-                "$ep_color" "$ep_short" "$rs" "$ep_pad" \
+                "$name_color" "$name_disp" "$c_rs" "$name_pad" \
+                "$ep_color" "$ep_short" "$c_rs" "$ep_pad" \
                 "$proxy_disp"
         done <<< "$raw"
     )
