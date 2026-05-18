@@ -50,6 +50,17 @@ teardown() {
     [[ "$result" == "$CCWS_PROJECT_ROOT" ]]
 }
 
+@test "share/init.sh overwrites stale CCWS_DIR (regression for stale-env-var bug)" {
+    # If a previous shell session exported a wrong CCWS_DIR (e.g. from an
+    # earlier buggy version of init.sh), re-sourcing should fix it.
+    result=$(bash -c "
+        export CCWS_DIR='/wrong/path/from/previous/session'
+        source '$CCWS_PROJECT_ROOT/share/init.sh'
+        echo \"\$CCWS_DIR\"
+    ")
+    [[ "$result" == "$CCWS_PROJECT_ROOT" ]]
+}
+
 @test "ccws use exports CLAUDE_CONFIG_DIR in current shell" {
     result=$(bash -c "
         export HOME='$HOME'
