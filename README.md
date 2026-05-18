@@ -75,6 +75,31 @@ $ ccws doctor
 $ ccws use personal && claude  # different account, same time, no conflict
 ```
 
+## Custom env vars per workspace
+
+`ccws use` exports every `ANTHROPIC_*` and `CLAUDE_*` key it finds in the workspace's `ccws.env` file. To add custom vars (model routing, effort level, anything Claude Code reads), append them to the file:
+
+```bash
+ccws add deepseek --base-url https://api.deepseek.com/anthropic --token sk-xxx
+
+cat >> ~/.ccws/workspaces/deepseek/ccws.env <<'EOF'
+ANTHROPIC_MODEL=deepseek-v4-pro[1m]
+ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek-v4-pro[1m]
+ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-v4-pro[1m]
+ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash
+CLAUDE_CODE_SUBAGENT_MODEL=deepseek-v4-flash
+CLAUDE_CODE_EFFORT_LEVEL=max
+EOF
+
+ccws use deepseek
+echo $ANTHROPIC_MODEL    # deepseek-v4-pro[1m]
+claude
+```
+
+Switching workspaces (`ccws use <other>`) automatically unsets the previous workspace's vars first — no stale `ANTHROPIC_MODEL` leaking across accounts. The `CCWS_EXPORTED` variable tracks what's currently active.
+
+Internal metadata keys (`CCWS_NAME`, `CCWS_CREATED`, `CCWS_DESCRIPTION`) are NOT exported into the claude process — only `ANTHROPIC_*` / `CLAUDE_*` / `CCWS_BINARY` / `CCWS_NAME` (re-set) / `CCWS_REAL_HOME` / `CLAUDE_CONFIG_DIR`.
+
 ## What it looks like
 
 ### Interactive picker (`ccws` with no args)

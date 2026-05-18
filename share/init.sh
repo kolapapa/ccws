@@ -21,6 +21,11 @@ ccws() {
     case "$cmd" in
         use)
             shift
+            # Clean up the previous workspace's exports first so we don't
+            # leak stale ANTHROPIC_MODEL etc. when switching between workspaces
+            # with different env-var sets.
+            local unset_cmds
+            unset_cmds=$("$CCWS_DIR/bin/ccws" unset 2>/dev/null) && eval "$unset_cmds"
             local exports
             exports=$("$CCWS_DIR/bin/ccws" use "$@") || return $?
             eval "$exports"

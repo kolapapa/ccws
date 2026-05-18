@@ -7,32 +7,81 @@ _libdir="$(dirname "${BASH_SOURCE[0]}")"
 [[ -z "${CCWS_COMMON_LOADED:-}" ]] && source "$_libdir/common.sh"
 [[ -z "${CCWS_ENV_LOADED:-}"    ]] && source "$_libdir/env.sh"
 
+# Exports for the active workspace.
+#
+# Always exports:
+#   CCWS_NAME, CCWS_REAL_HOME, CLAUDE_CONFIG_DIR
+#
+# Also exports every key from ccws.env that matches:
+#   ANTHROPIC_*, CLAUDE_*, CCWS_BINARY, or any other CCWS_* not in the
+#   internal metadata set (CCWS_NAME / CCWS_CREATED / CCWS_DESCRIPTION).
+#
+# This allows users to add custom env vars like ANTHROPIC_MODEL,
+# CLAUDE_CODE_EFFORT_LEVEL, etc. by appending KEY=VALUE lines to
+# the workspace's ccws.env file.
+#
+# Finally exports CCWS_EXPORTED — comma-separated list of every var name
+# we exported. The shell wrapper uses this to know what to unset when
+# switching workspaces or running 'ccws unset'.
 ccws_cmd_use_print_exports() {
     local name="$1"
     ccws_validate_name "$name" || return 2
 
-    local ws
+    local ws envfile
     ws=$(ccws_ws_dir "$name")
+    envfile=$(ccws_env_file "$name")
     if [[ ! -d "$ws" ]]; then
         ccws_log_error "workspace not found: $name"
         return 1
     fi
 
+    # Track everything we export so unset can clean it up.
+    local exported_keys=(CCWS_NAME CCWS_REAL_HOME CLAUDE_CONFIG_DIR)
+
     printf 'export CCWS_NAME=%q\n' "$name"
     printf 'export CCWS_REAL_HOME=%q\n' "$HOME"
     printf 'export CLAUDE_CONFIG_DIR=%q\n' "$ws"
 
-    local base_url token binary
-    base_url=$(ccws_env_get "$name" ANTHROPIC_BASE_URL || true)
-    token=$(ccws_env_get   "$name" ANTHROPIC_AUTH_TOKEN || true)
-    binary=$(ccws_env_get  "$name" CCWS_BINARY || true)
+    # Iterate ccws.env and export every matching key.
+    if [[ -f "$envfile" ]]; then
+        local key value
+        while IFS='=' read -r key value; do
+            [[ -z "$key" ]] && continue
+            [[ "$key" == \#* ]] && continue
+            # Reject keys with non-identifier characters (security: no shell injection)
+            [[ "$key" == *[![:alnum:]_]* ]] && continue
 
-    [[ -n "$base_url" ]] && printf 'export ANTHROPIC_BASE_URL=%q\n' "$base_url"
-    [[ -n "$token"    ]] && printf 'export ANTHROPIC_AUTH_TOKEN=%q\n' "$token"
-    [[ -n "$binary"   ]] && {
-        printf 'export CCWS_BINARY=%q\n' "$binary"
-        printf 'export PATH=%q\n' "$(dirname "$binary"):$PATH"
-    }
+            case "$key" in
+                # ccws-internal metadata — not exported to child shells
+                CCWS_NAME|CCWS_CREATED|CCWS_DESCRIPTION)
+                    continue
+                    ;;
+                # CCWS_BINARY also adjusts PATH so 'claude' resolves correctly
+                CCWS_BINARY)
+                    printf 'export CCWS_BINARY=%q\n' "$value"
+                    printf 'export PATH=%q\n' "$(dirname "$value"):$PATH"
+                    exported_keys+=(CCWS_BINARY PATH)
+                    ;;
+                # ANTHROPIC_*, CLAUDE_*, or any other CCWS_* — export verbatim
+                ANTHROPIC_*|CLAUDE_*|CCWS_*)
+                    printf 'export %s=%q\n' "$key" "$value"
+                    exported_keys+=("$key")
+                    ;;
+                # Anything else — skip silently (could be a future ccws-internal key)
+                *)
+                    continue
+                    ;;
+            esac
+        done < "$envfile"
+    fi
+
+    # Emit the tracking variable last so the shell wrapper can read it.
+    # Don't use %q here — keys are validated identifiers (alphanumeric + _),
+    # so they need no escaping, and %q would escape the commas separators
+    # which breaks fish wrapper's parsing.
+    local exported_list
+    exported_list=$(IFS=,; printf '%s' "${exported_keys[*]}")
+    printf 'export CCWS_EXPORTED=%s\n' "$exported_list"
     return 0
 }
 
