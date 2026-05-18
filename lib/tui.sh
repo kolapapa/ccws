@@ -6,6 +6,37 @@ _libdir="$(dirname "${BASH_SOURCE[0]}")"
 [[ -z "${CCWS_COMMON_LOADED:-}" ]] && source "$_libdir/common.sh"
 [[ -z "${CCWS_ENV_LOADED:-}"    ]] && source "$_libdir/env.sh"
 
+# Normalize an endpoint URL to a short, fixed-shape label for the picker list.
+# Examples:
+#   https://api.anthropic.com           → anthropic
+#   https://api.deepseek.com/anthropic  → deepseek-gw
+#   https://api.openai.com              → openai-gw
+#   https://aigwasia-shasp.tidu8.cn     → aigwasia-shasp.tidu8.cn (host only)
+#   (empty)                             → anthropic
+ccws_tui_short_endpoint() {
+    local url="$1"
+    case "$url" in
+        ""|anthropic|*api.anthropic.com*)  printf 'anthropic\n' ;;
+        *api.deepseek.com*)                printf 'deepseek-gw\n' ;;
+        *api.openai.com*)                  printf 'openai-gw\n' ;;
+        *)
+            local host="${url#*://}"
+            host="${host%%/*}"
+            printf '%s\n' "$host"
+            ;;
+    esac
+}
+
+# Truncate $1 to fit in $2 visible columns, adding "…" if cut.
+ccws_tui_truncate() {
+    local s="$1" w="$2"
+    if [[ ${#s} -gt $w ]]; then
+        printf '%s…\n' "${s:0:$((w - 1))}"
+    else
+        printf '%s\n' "$s"
+    fi
+}
+
 ccws_tui_engine() {
     if [[ "${CCWS_NO_TUI:-0}" == "1" ]]; then
         printf 'disabled\n'
