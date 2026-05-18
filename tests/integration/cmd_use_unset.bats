@@ -118,3 +118,58 @@ EOF
     [[ "$output" == *"unset CCWS_EXPORTED"* ]]
     unset CCWS_EXPORTED
 }
+
+# === proxy support (0.5.0) ===
+
+@test "ccws_cmd_use_print_exports emits HTTPS_PROXY/HTTP_PROXY from ccws.env" {
+    cat >> "$HOME/.ccws/workspaces/work/ccws.env" <<'EOF'
+HTTPS_PROXY=http://127.0.0.1:7890
+HTTP_PROXY=http://127.0.0.1:7890
+EOF
+    run ccws_cmd_use_print_exports work
+    [[ "$output" == *"export HTTPS_PROXY=http://127.0.0.1:7890"* ]]
+    [[ "$output" == *"export HTTP_PROXY=http://127.0.0.1:7890"* ]]
+}
+
+@test "ccws_cmd_use_print_exports emits ALL_PROXY (socks)" {
+    cat >> "$HOME/.ccws/workspaces/work/ccws.env" <<'EOF'
+ALL_PROXY=socks5://127.0.0.1:7890
+EOF
+    run ccws_cmd_use_print_exports work
+    [[ "$output" == *"export ALL_PROXY=socks5://127.0.0.1:7890"* ]]
+}
+
+@test "ccws_cmd_use_print_exports emits lowercase proxy vars" {
+    cat >> "$HOME/.ccws/workspaces/work/ccws.env" <<'EOF'
+https_proxy=http://127.0.0.1:7890
+no_proxy=localhost,127.0.0.1
+EOF
+    run ccws_cmd_use_print_exports work
+    echo "$output" | grep -q "^export https_proxy="
+    echo "$output" | grep -q "^export no_proxy="
+    # printf '%q' may backslash-escape some chars (comma in older bash); the
+    # eval'd value is still correct. Test via eval rather than literal match.
+    local result_no_proxy
+    result_no_proxy=$(eval "$output"; echo "$no_proxy")
+    [[ "$result_no_proxy" == "localhost,127.0.0.1" ]]
+}
+
+@test "ccws_cmd_use_print_exports tracks proxy vars in CCWS_EXPORTED" {
+    cat >> "$HOME/.ccws/workspaces/work/ccws.env" <<'EOF'
+HTTPS_PROXY=http://127.0.0.1:7890
+HTTP_PROXY=http://127.0.0.1:7890
+EOF
+    run ccws_cmd_use_print_exports work
+    local exported_line
+    exported_line=$(echo "$output" | grep "CCWS_EXPORTED=")
+    [[ "$exported_line" == *"HTTPS_PROXY"* ]]
+    [[ "$exported_line" == *"HTTP_PROXY"* ]]
+}
+
+@test "ccws_cmd_add --proxy writes HTTPS_PROXY and HTTP_PROXY to ccws.env" {
+    ccws_cmd_add proxytest --base-url "https://api.anthropic.com" --token "sk-x" --proxy "http://127.0.0.1:7890" --non-interactive
+    local envfile="$HOME/.ccws/workspaces/proxytest/ccws.env"
+    [[ -f "$envfile" ]]
+    grep -q '^HTTPS_PROXY=http://127.0.0.1:7890$' "$envfile"
+    grep -q '^HTTP_PROXY=http://127.0.0.1:7890$' "$envfile"
+}

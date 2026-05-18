@@ -9,16 +9,17 @@ ccws_env_file() {
     printf '%s\n' "$(ccws_ws_dir "$1")/ccws.env"
 }
 
-# Usage: ccws_env_write <name> [--base-url URL] [--token TOK] [--binary PATH] [--description DESC]
+# Usage: ccws_env_write <name> [--base-url URL] [--token TOK] [--binary PATH] [--description DESC] [--proxy URL]
 ccws_env_write() {
     local name="$1"; shift
-    local base_url="" token="" binary="" description=""
+    local base_url="" token="" binary="" description="" proxy=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --base-url)    base_url="$2"; shift 2 ;;
             --token)       token="$2";    shift 2 ;;
             --binary)      binary="$2";   shift 2 ;;
             --description) description="$2"; shift 2 ;;
+            --proxy)       proxy="$2";    shift 2 ;;
             *) ccws_log_error "unknown ccws_env_write flag: $1"; return 1 ;;
         esac
     done
@@ -36,6 +37,10 @@ ccws_env_write() {
         [[ -n "$token"       ]] && echo "ANTHROPIC_AUTH_TOKEN=$token"
         [[ -n "$binary"      ]] && echo "CCWS_BINARY=$binary"
         [[ -n "$description" ]] && echo "CCWS_DESCRIPTION=$description"
+        if [[ -n "$proxy" ]]; then
+            echo "HTTPS_PROXY=$proxy"
+            echo "HTTP_PROXY=$proxy"
+        fi
     } > "$envfile"
     chmod 600 "$envfile"
 }
@@ -67,6 +72,15 @@ ccws_env_get() {
     envfile=$(ccws_env_file "$name")
     [[ -f "$envfile" ]] || return 1
     grep -m1 "^${key}=" "$envfile" | cut -d= -f2-
+}
+
+# Returns 0 if ccws.env defines any HTTP/SOCKS proxy var, 1 otherwise.
+ccws_env_has_proxy() {
+    local name="$1"
+    local envfile
+    envfile=$(ccws_env_file "$name")
+    [[ -f "$envfile" ]] || return 1
+    grep -qE '^(HTTPS?_PROXY|ALL_PROXY|https?_proxy|all_proxy)=' "$envfile"
 }
 
 export CCWS_ENV_LOADED=1

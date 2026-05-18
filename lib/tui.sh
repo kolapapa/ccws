@@ -16,7 +16,8 @@ ccws_tui_engine() {
     fi
 }
 
-# Outputs lines: "name | endpoint | last_modified_unix"
+# Outputs lines: "name | endpoint | proxy | last_modified_unix"
+# proxy is "on" or "off"
 ccws_tui_collect_workspaces() {
     local ws_dir
     ws_dir=$(ccws_workspaces_dir)
@@ -27,9 +28,11 @@ ccws_tui_collect_workspaces() {
         name=$(basename "$d")
         local endpoint
         endpoint=$(ccws_env_get "$name" ANTHROPIC_BASE_URL || true)
+        local proxy="off"
+        ccws_env_has_proxy "$name" && proxy="on"
         local mtime
         mtime=$(stat -f %m "$d" 2>/dev/null || stat -c %Y "$d")
-        printf '%s | %s | %s\n' "$name" "${endpoint:-anthropic}" "$mtime"
+        printf '%s | %s | %s | %s\n' "$name" "${endpoint:-anthropic}" "$proxy" "$mtime"
     done
 }
 

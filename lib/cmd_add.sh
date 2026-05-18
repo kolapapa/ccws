@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ccws add <name> [--base-url URL] [--token TOK] [--binary PATH] [--description DESC]
+# ccws add <name> [--base-url URL] [--token TOK] [--binary PATH] [--description DESC] [--proxy URL]
 
 # shellcheck disable=SC1091
 _libdir="$(dirname "${BASH_SOURCE[0]}")"
@@ -21,7 +21,7 @@ ccws_cmd_add() {
     # Track which optional fields the user provided via flags so we know
     # which ones to prompt for. --binary is supported but not prompted
     # for (rare setting; only users who know they need it pass --binary).
-    local has_base_url=0 has_token=0 has_description=0
+    local has_base_url=0 has_token=0 has_description=0 has_proxy=0
     local non_interactive=0
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -29,6 +29,7 @@ ccws_cmd_add() {
             --token)           args+=("$1" "$2"); has_token=1;       shift 2 ;;
             --binary)          args+=("$1" "$2");                    shift 2 ;;
             --description)     args+=("$1" "$2"); has_description=1; shift 2 ;;
+            --proxy)           args+=("$1" "$2"); has_proxy=1;       shift 2 ;;
             --non-interactive) non_interactive=1; shift ;;
             -*)
                 ccws_log_error "unknown flag: $1"; return 2 ;;
@@ -70,6 +71,18 @@ ccws_cmd_add() {
             local _desc=""
             IFS= read -r _desc || true
             [[ -n "$_desc" ]] && args+=(--description "$_desc")
+        fi
+        if [[ "$has_proxy" -eq 0 ]]; then
+            printf 'Enable proxy? [y/N]: ' >&2
+            local _yn=""
+            IFS= read -r _yn || true
+            if [[ "$_yn" == "y" || "$_yn" == "Y" ]]; then
+                printf 'Proxy URL [http://127.0.0.1:7890]: ' >&2
+                local _proxy=""
+                IFS= read -r _proxy || true
+                [[ -z "$_proxy" ]] && _proxy="http://127.0.0.1:7890"
+                args+=(--proxy "$_proxy")
+            fi
         fi
     fi
 

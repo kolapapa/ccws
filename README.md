@@ -75,6 +75,87 @@ $ ccws doctor
 $ ccws use personal && claude  # different account, same time, no conflict
 ```
 
+## Directory-scoped workspaces (pyenv-style)
+
+`ccws` resolves the active workspace from three sources, in priority order:
+
+1. `CCWS_NAME` env var — set by `ccws use <name>` (shell scope)
+2. `.ccws-workspace` file in `$PWD` or any parent (directory scope)
+3. `~/.ccws/global` (user default)
+4. Nothing — `claude` falls back to plain `~/.claude/`
+
+```bash
+# In a project directory, pin a workspace:
+cd ~/work/projectA
+ccws local company              # writes .ccws-workspace
+
+# Set a user-wide default:
+ccws global personal              # writes ~/.ccws/global
+
+# Inspect resolution:
+ccws which                        # prints: company
+ccws which --explain              # also prints the source (local/global/shell)
+
+# Activate the resolved workspace in the current shell:
+ccws use $(ccws which)
+```
+
+For automatic activation (so `claude` in any directory auto-picks up the scope), see the `claude` wrapper section below.
+
+## `claude` wrapper (opt-in auto-activation)
+
+When enabled, the `claude` command auto-resolves the current scope and runs Claude Code with that workspace's env — without permanently mutating your shell. Like `pyenv` shims `python`.
+
+Enable in `~/.zshrc` (or `~/.bashrc`):
+
+```bash
+eval "$(ccws hook --shell zsh)"     # ccws() function
+eval "$(ccws hook --claude)"        # claude() wrapper
+```
+
+Now:
+
+```bash
+cd ~/work/projectA && claude      # uses .ccws-workspace's workspace
+cd ~/personal && claude           # uses .ccws-workspace's workspace (different!)
+cd /tmp && claude                 # uses ~/.ccws/global or plain ~/.claude/
+
+# Override in current shell (highest priority):
+ccws use company
+claude                            # uses company regardless of $PWD
+```
+
+The wrapper does NOT modify your parent shell's env — `echo $ANTHROPIC_BASE_URL` after `claude` exits will show whatever was there before.
+
+## Proxy per workspace
+
+Some Claude endpoints (Anthropic direct from certain regions) need an HTTP/SOCKS proxy. Others (gateway endpoints like DeepSeek) don't. ccws supports per-workspace proxy settings:
+
+```bash
+# Interactive add prompts for proxy:
+$ ccws add anth
+Endpoint URL (Anthropic default, blank to skip): https://api.anthropic.com
+API token (paste, hidden; blank to skip): sk-***
+Enable proxy? [y/N]: y
+Proxy URL [http://127.0.0.1:7890]:
+
+# Or one-liner:
+$ ccws add anth --base-url https://api.anthropic.com --token sk-x --proxy http://127.0.0.1:7890
+```
+
+Stored as `HTTPS_PROXY=` / `HTTP_PROXY=` in `ccws.env`. Switching workspaces auto-unsets them so a non-proxy workspace doesn't leak through.
+
+For SOCKS or fine-grained control, append directly to `ccws.env`:
+
+```bash
+cat >> ~/.ccws/workspaces/anth/ccws.env <<'EOF'
+ALL_PROXY=socks5://127.0.0.1:7890
+NO_PROXY=localhost,127.0.0.1,.internal
+EOF
+```
+
+ccws exports all of `HTTPS_PROXY` / `HTTP_PROXY` / `ALL_PROXY` / `NO_PROXY` (plus their lowercase forms) from `ccws.env`.
+
 ## Custom env vars per workspace
 
 `ccws use` exports every `ANTHROPIC_*` and `CLAUDE_*` key it finds in the workspace's `ccws.env` file. To add custom vars (model routing, effort level, anything Claude Code reads), append them to the file:
@@ -206,19 +287,27 @@ Color-coded: `✓` green ok · `!` yellow warning · `✗` red error.
 ## Commands
 
 ```
-ccws                    Open interactive TUI picker (gum + fzf)
-ccws init               First-time setup wizard (run once after install)
-ccws add [<name>]       Create a workspace (interactive if no args)
-                        [--base-url URL] [--token TOK] [--binary PATH]
-ccws use <name>         Activate workspace in current shell
-ccws unset              Deactivate workspace in current shell
-ccws list [--verbose]   List all workspaces
-ccws current [--path]   Show currently active workspace
-ccws rm <name> [-f]     Remove workspace
-ccws doctor             Run health checks
-ccws sync [<name>]      Re-link symlinks for one or all workspaces
-ccws --no-tui           Bypass TUI when called without args
-ccws --help             Show this help
+ccws                       Open interactive TUI picker (Catppuccin Mocha)
+ccws init                  First-time setup wizard
+ccws add [<name> [...]]    Create a workspace (interactive if no args)
+                           [--base-url URL] [--token TOK] [--binary PATH]
+                           [--proxy URL] [--description DESC]
+ccws use <name>            Activate workspace in current shell
+ccws unset                 Deactivate workspace in current shell
+ccws local <name>          Set .ccws-workspace in $PWD (pyenv-style)
+ccws local --unset         Remove .ccws-workspace
+ccws global <name>         Set user-default workspace
+ccws global --unset        Clear user-default
+ccws which [--explain]     Resolve active workspace (shell > local > global)
+ccws hook --shell zsh      Emit init code (eval in ~/.zshrc)
+ccws hook --claude         Emit claude() wrapper (opt-in auto-activation)
+ccws list [--verbose]      List all workspaces
+ccws current [--path]      Show currently active workspace
+ccws rm <name> [-f]        Remove workspace
+ccws doctor                Run health checks
+ccws sync [<name>]         Re-link symlinks for one or all workspaces
+ccws --no-tui              Bypass TUI when called without args
+ccws --help                Show this help
 ```
 
 ## License

@@ -27,6 +27,15 @@ teardown() {
     [[ "$output" == *"personal"* ]]
 }
 
+@test "ccws_tui_collect_workspaces includes proxy field" {
+    # add a workspace with proxy
+    ccws_cmd_add proxied --proxy "http://127.0.0.1:7890" --non-interactive
+    run ccws_tui_collect_workspaces
+    # proxied row has "on", others have "off"
+    echo "$output" | grep "proxied" | grep -q " on "
+    echo "$output" | grep "work" | grep -q " off "
+}
+
 @test "ccws_tui_collect_workspaces returns empty when no workspaces" {
     rm -rf "$HOME/.ccws"
     run ccws_tui_collect_workspaces

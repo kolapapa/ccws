@@ -35,6 +35,16 @@ source "$CCWS_DIR/lib/cmd_doctor.sh"
 # shellcheck disable=SC1091
 source "$CCWS_DIR/lib/cmd_init.sh"
 # shellcheck disable=SC1091
+source "$CCWS_DIR/lib/scope.sh"
+# shellcheck disable=SC1091
+source "$CCWS_DIR/lib/cmd_local.sh"
+# shellcheck disable=SC1091
+source "$CCWS_DIR/lib/cmd_global.sh"
+# shellcheck disable=SC1091
+source "$CCWS_DIR/lib/cmd_which.sh"
+# shellcheck disable=SC1091
+source "$CCWS_DIR/lib/cmd_hook.sh"
+# shellcheck disable=SC1091
 source "$CCWS_DIR/lib/tui.sh"
 
 usage() {
@@ -42,19 +52,28 @@ usage() {
 ccws — Claude Code WorkSpace · per-shell environment switcher
 
 Usage:
-  ccws                    Open interactive TUI picker (gum + fzf)
-  ccws init               First-time setup wizard
-  ccws add [<name> [...]] Create a workspace (interactive if no args)
-                          [--base-url URL] [--token TOK] [--binary PATH]
-  ccws use <name>         Activate workspace in current shell (via shell function)
-  ccws unset              Deactivate workspace in current shell
-  ccws list [--verbose]   List all workspaces
-  ccws current [--path]   Show currently active workspace
-  ccws rm <name> [-f]     Remove workspace
-  ccws doctor             Run health checks
-  ccws sync [<name>]      Re-link symlinks for one or all workspaces
-  ccws --no-tui           Bypass TUI when called without args
-  ccws --help             Show this help
+  ccws                       Open interactive TUI picker (gum + fzf)
+  ccws init                  First-time setup wizard
+  ccws add [<name> [...]]    Create a workspace (interactive if no args)
+                             [--base-url URL] [--token TOK] [--binary PATH]
+                             [--proxy URL] [--description DESC]
+  ccws use <name>            Activate workspace in current shell
+  ccws unset                 Deactivate workspace in current shell
+  ccws local <name>          Set .ccws-workspace in $PWD (pyenv-style)
+  ccws local --unset         Remove .ccws-workspace from $PWD
+  ccws global <name>         Set user-default workspace
+  ccws global --unset        Clear user-default
+  ccws which [--explain]     Resolve the workspace that would be active
+                             (shell env > local file > global > none)
+  ccws hook --shell zsh      Emit init code (eval in ~/.zshrc)
+  ccws hook --claude         Emit claude() wrapper (opt-in auto-activation)
+  ccws list [--verbose]      List all workspaces
+  ccws current [--path]      Show currently active workspace
+  ccws rm <name> [-f]        Remove workspace
+  ccws doctor                Run health checks
+  ccws sync [<name>]         Re-link symlinks for one or all workspaces
+  ccws --no-tui              Bypass TUI when called without args
+  ccws --help                Show this help
 
 For 'use'/'unset' to affect your current shell, source share/init.sh
 (or share/init.fish for fish) in your rc.
@@ -92,6 +111,10 @@ case "$cmd" in
     doctor)   ccws_cmd_doctor "$@" ;;
     use)      ccws_cmd_use_print_exports "$@" ;;
     unset)    ccws_cmd_unset_print_exports ;;
-    --version|-V) echo "ccws 0.4.0"; exit 0 ;;
+    local)    ccws_cmd_local "$@" ;;
+    global)   ccws_cmd_global "$@" ;;
+    which)    ccws_cmd_which "$@" ;;
+    hook)     ccws_cmd_hook "$@" ;;
+    --version|-V) echo "ccws 0.5.0"; exit 0 ;;
     *)        usage >&2; ccws_log_error "unknown command: $cmd"; exit 2 ;;
 esac

@@ -15,10 +15,12 @@ _libdir="$(dirname "${BASH_SOURCE[0]}")"
 # Also exports every key from ccws.env that matches:
 #   ANTHROPIC_*, CLAUDE_*, CCWS_BINARY, or any other CCWS_* not in the
 #   internal metadata set (CCWS_NAME / CCWS_CREATED / CCWS_DESCRIPTION).
+#   Standard proxy vars: HTTPS_PROXY / HTTP_PROXY / ALL_PROXY / NO_PROXY
+#   (and their lowercase forms — some tools only honor one case).
 #
 # This allows users to add custom env vars like ANTHROPIC_MODEL,
-# CLAUDE_CODE_EFFORT_LEVEL, etc. by appending KEY=VALUE lines to
-# the workspace's ccws.env file.
+# CLAUDE_CODE_EFFORT_LEVEL, HTTPS_PROXY, etc. by appending KEY=VALUE lines
+# to the workspace's ccws.env file.
 #
 # Finally exports CCWS_EXPORTED — comma-separated list of every var name
 # we exported. The shell wrapper uses this to know what to unset when
@@ -64,6 +66,15 @@ ccws_cmd_use_print_exports() {
                     ;;
                 # ANTHROPIC_*, CLAUDE_*, or any other CCWS_* — export verbatim
                 ANTHROPIC_*|CLAUDE_*|CCWS_*)
+                    printf 'export %s=%q\n' "$key" "$value"
+                    exported_keys+=("$key")
+                    ;;
+                # Standard HTTP/SOCKS proxy vars — both cases (Unix tools vary)
+                HTTPS_PROXY|HTTP_PROXY|ALL_PROXY|NO_PROXY)
+                    printf 'export %s=%q\n' "$key" "$value"
+                    exported_keys+=("$key")
+                    ;;
+                https_proxy|http_proxy|all_proxy|no_proxy)
                     printf 'export %s=%q\n' "$key" "$value"
                     exported_keys+=("$key")
                     ;;
