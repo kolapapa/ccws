@@ -45,7 +45,7 @@ ccws_validate_name() {
     fi
     # Reserved names that conflict with CLI semantics
     case "$name" in
-        add|list|use|unset|current|rm|sync|doctor|tui|none|default-tui|--*)
+        add|init|list|use|unset|current|rm|sync|doctor|tui|none|default-tui|--*)
             ccws_log_error "'$name' is a reserved name"
             return 1
             ;;

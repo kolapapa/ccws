@@ -9,6 +9,37 @@ _libdir="$(dirname "${BASH_SOURCE[0]}")"
 [[ -z "${CCWS_SYMLINK_FARM_LOADED:-}"  ]] && source "$_libdir/symlink_farm.sh"
 
 ccws_cmd_add() {
+    # Interactive mode if no args
+    if [[ $# -eq 0 ]]; then
+        printf 'Workspace name: ' >&2
+        local _name
+        IFS= read -r _name
+        [[ -z "$_name" ]] && { ccws_log_error "name required"; return 2; }
+
+        printf 'Endpoint URL (Anthropic default, blank to use it): ' >&2
+        local _url
+        IFS= read -r _url
+
+        printf 'API token (paste, hidden; blank to skip): ' >&2
+        local _token
+        IFS= read -rs _token
+        echo "" >&2
+
+        printf 'Description (optional): ' >&2
+        local _desc
+        IFS= read -r _desc
+
+        local _args=("$_name")
+        [[ -n "$_url"   ]] && _args+=(--base-url "$_url")
+        [[ -n "$_token" ]] && _args+=(--token "$_token")
+        [[ -n "$_desc"  ]] && _args+=(--description "$_desc")
+
+        # Recurse with constructed args
+        ccws_cmd_add "${_args[@]}"
+        return $?
+    fi
+
+    # ===== existing logic continues unchanged below =====
     local name=""
     local args=()
     while [[ $# -gt 0 ]]; do

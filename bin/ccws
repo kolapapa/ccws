@@ -33,6 +33,8 @@ source "$CCWS_DIR/lib/cmd_sync.sh"
 # shellcheck disable=SC1091
 source "$CCWS_DIR/lib/cmd_doctor.sh"
 # shellcheck disable=SC1091
+source "$CCWS_DIR/lib/cmd_init.sh"
+# shellcheck disable=SC1091
 source "$CCWS_DIR/lib/tui.sh"
 
 usage() {
@@ -41,7 +43,8 @@ ccws — Claude Code WorkSpace · per-shell environment switcher
 
 Usage:
   ccws                    Open interactive TUI picker (gum + fzf)
-  ccws add <name> [opts]  Create a workspace
+  ccws init               First-time setup wizard
+  ccws add [<name> [...]] Create a workspace (interactive if no args)
                           [--base-url URL] [--token TOK] [--binary PATH]
   ccws use <name>         Activate workspace in current shell (via shell function)
   ccws unset              Deactivate workspace in current shell
@@ -55,6 +58,8 @@ Usage:
 
 For 'use'/'unset' to affect your current shell, source share/init.sh
 (or share/init.fish for fish) in your rc.
+
+First time? Run: ccws init
 EOF
 }
 
@@ -79,6 +84,7 @@ esac
 cmd="$1"; shift
 case "$cmd" in
     add)      ccws_cmd_add "$@" ;;
+    init)     ccws_cmd_init "$@" ;;
     list)     ccws_cmd_list "$@" ;;
     current)  ccws_cmd_current "$@" ;;
     rm)       ccws_cmd_rm "$@" ;;
@@ -86,6 +92,6 @@ case "$cmd" in
     doctor)   ccws_cmd_doctor "$@" ;;
     use)      ccws_cmd_use_print_exports "$@" ;;
     unset)    ccws_cmd_unset_print_exports ;;
-    --version|-V) echo "ccws 0.1.1"; exit 0 ;;
+    --version|-V) echo "ccws 0.2.0"; exit 0 ;;
     *)        usage >&2; ccws_log_error "unknown command: $cmd"; exit 2 ;;
 esac

@@ -24,13 +24,27 @@ ccws complements cc-switch — different problem, different solution.
 ## Install
 
 ```bash
-git clone https://github.com/<user>/ccws ~/workspace/ccws
+git clone https://github.com/kolapapa/ccws ~/workspace/ccws
 cd ~/workspace/ccws
-./install.sh
-# Restart your shell
+./install.sh             # PATH + shell rc only
+# Restart your shell (or `source ~/.zshrc`)
+ccws init                # interactive setup wizard
 ```
 
 Optional deps for nicer TUI: `brew install gum fzf`
+
+## First-time setup · `ccws init`
+
+`ccws init` is the entry point for new users. It walks you through:
+
+1. **Detect existing `~/.claude/`** — if found, optionally adopt as a `default` workspace
+2. **Install slash commands** `/whoami` and `/switch` into `~/.claude/commands/`
+3. **Create your first new workspace** — name, endpoint, token (e.g. for a second account or DeepSeek gateway)
+4. **Summary** — workspaces created, what to do next
+
+Idempotent: re-running shows status instead of repeating setup. Use `ccws init --reset` to wipe and restart.
+
+If you have no `~/.claude/` yet, `ccws init` offers to create an empty one (so plugins have somewhere to live) or asks you to run `claude` once first.
 
 ## Usage
 
@@ -38,7 +52,10 @@ Optional deps for nicer TUI: `brew install gum fzf`
 # Interactive picker (the recommended entry)
 $ ccws
 
-# Or CLI:
+# Interactive add (prompts for name / endpoint / token):
+$ ccws add
+
+# Or one-liner CLI:
 $ ccws add work --base-url https://api.anthropic.com --token sk-...
 $ ccws add personal
 $ ccws add deepseek --base-url https://api.deepseek.com/anthropic --token sk-...
@@ -159,7 +176,8 @@ Color-coded: `✓` green ok · `!` yellow warning · `✗` red error.
 
 ```
 ccws                    Open interactive TUI picker (gum + fzf)
-ccws add <name> [opts]  Create a workspace
+ccws init               First-time setup wizard (run once after install)
+ccws add [<name>]       Create a workspace (interactive if no args)
                         [--base-url URL] [--token TOK] [--binary PATH]
 ccws use <name>         Activate workspace in current shell
 ccws unset              Deactivate workspace in current shell
