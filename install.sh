@@ -7,15 +7,20 @@ CCWS_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_BIN="$HOME/.local/bin"
 
 write_shell_rc=1
+enable_claude_wrapper=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --no-shell-rc) write_shell_rc=0; shift ;;
+        --with-claude-wrapper) enable_claude_wrapper=1; shift ;;
         --help|-h) cat <<'EOF'
 ccws installer
 
-Usage: ./install.sh [--no-shell-rc]
+Usage: ./install.sh [--no-shell-rc] [--with-claude-wrapper]
 
-  --no-shell-rc    Don't touch ~/.bashrc / ~/.zshrc / fish config
+  --no-shell-rc          Don't touch ~/.bashrc / ~/.zshrc / fish config
+  --with-claude-wrapper  Also enable the opt-in claude() wrapper that
+                         auto-resolves .ccws-workspace files (pyenv-style).
+                         Replaces any external 'claude' shell function.
 
 After install, run:  ccws init
 EOF
@@ -47,27 +52,54 @@ for tool in fzf gum; do
     fi
 done
 
-# Shell rc wiring
+# Shell rc wiring — write 'ccws hook' eval lines (v0.5.0+).
+# Old direct 'source .../share/init.sh' lines are detected and left alone
+# (we don't silently rewrite; user can swap manually).
 if [[ "$write_shell_rc" -eq 1 ]]; then
     echo ""
     for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
-        if [[ -f "$rc" ]] && ! grep -q "ccws/share/init" "$rc"; then
-            {
-                echo ""
-                echo "# ccws — Claude Code WorkSpace"
-                echo "source $CCWS_SRC/share/init.sh"
-            } >> "$rc"
-            echo "✓ Added init line to $rc"
+        [[ -f "$rc" ]] || continue
+        if grep -qE "ccws hook|ccws/share/init" "$rc"; then
+            if grep -q "ccws/share/init" "$rc" && ! grep -q "ccws hook" "$rc"; then
+                echo "! $rc has legacy 'source .../share/init.sh' line"
+                echo "  (still works — to upgrade, replace with: eval \"\$(ccws hook --shell ${rc##*/.}|sed s/rc//) \")"
+            else
+                echo "  (skipped — $rc already has ccws hook)"
+            fi
+            continue
         fi
-    done
-    fish_conf="$HOME/.config/fish/config.fish"
-    if [[ -f "$fish_conf" ]] && ! grep -q "ccws/share/init" "$fish_conf"; then
+        local_shell="${rc##*/.}"; local_shell="${local_shell%rc}"
         {
             echo ""
             echo "# ccws — Claude Code WorkSpace"
-            echo "source $CCWS_SRC/share/init.fish"
-        } >> "$fish_conf"
-        echo "✓ Added init line to $fish_conf"
+            echo "eval \"\$(ccws hook --shell $local_shell)\""
+            if [[ "$enable_claude_wrapper" -eq 1 ]]; then
+                echo "eval \"\$(ccws hook --claude)\""
+            else
+                echo "# Uncomment to let 'claude' auto-resolve .ccws-workspace / global:"
+                echo "# eval \"\$(ccws hook --claude)\""
+            fi
+        } >> "$rc"
+        echo "✓ Added ccws hook to $rc"
+    done
+    fish_conf="$HOME/.config/fish/config.fish"
+    if [[ -f "$fish_conf" ]]; then
+        if grep -qE "ccws hook|ccws/share/init" "$fish_conf"; then
+            echo "  (skipped — $fish_conf already wired)"
+        else
+            {
+                echo ""
+                echo "# ccws — Claude Code WorkSpace"
+                echo "ccws hook --shell fish | source"
+                if [[ "$enable_claude_wrapper" -eq 1 ]]; then
+                    echo "ccws hook --claude | source"
+                else
+                    echo "# Uncomment to let 'claude' auto-resolve scope:"
+                    echo "# ccws hook --claude | source"
+                fi
+            } >> "$fish_conf"
+            echo "✓ Added ccws hook to $fish_conf"
+        fi
     fi
 fi
 
