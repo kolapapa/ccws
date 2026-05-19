@@ -264,25 +264,33 @@ SHIM
     # Regression for user-reported bug: ccws picker errored with
     # `start_bind[@]: unbound variable` when CCWS_NAME was unset (so
     # start_bind stayed empty).
-    if ! command -v fzf >/dev/null 2>&1 || ! _ccws_fzf_min_version; then
-        skip "needs fzf >=0.44 installed"
-    fi
+    #
+    # We DON'T gate on real fzf availability — the regression itself fires
+    # inside ccws_tui_fzf_pick BEFORE fzf gets invoked (the unbound-var
+    # error happens when bash expands the empty array on the fzf command
+    # line). Stubbing fzf with a shell function and running under bash
+    # explicitly reproduces the exact failure mode regardless of host fzf
+    # version.
     unset CCWS_NAME
     run bash -c "
         set -euo pipefail
         export HOME='$HOME'
+        # Bypass the engine's fzf-version gate so the picker code path runs
+        # even on machines without fzf installed.
+        _ccws_fzf_min_version() { return 0; }
         source '$CCWS_PROJECT_ROOT/lib/common.sh'
         source '$CCWS_PROJECT_ROOT/lib/env.sh'
         source '$CCWS_PROJECT_ROOT/lib/lock.sh'
         source '$CCWS_PROJECT_ROOT/lib/symlink_farm.sh'
         source '$CCWS_PROJECT_ROOT/lib/tui.sh'
         source '$CCWS_PROJECT_ROOT/lib/tui_fzf.sh'
-        # Stub fzf so the function returns without needing a tty.
+        # Stub fzf as a function so it works whether or not real fzf is on PATH.
         fzf() { printf 'work\n'; }
-        export -f fzf
         ccws_tui_fzf_pick </dev/null
     "
-    # If the bug regresses, output would contain 'unbound variable'.
+    # If the bug regresses, status would be 1 (set -u abort) and output
+    # would contain 'unbound variable'.
+    [[ "$status" -eq 0 ]]
     [[ "$output" != *"unbound variable"* ]]
 }
 

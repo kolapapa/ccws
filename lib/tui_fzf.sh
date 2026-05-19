@@ -134,6 +134,9 @@ ccws_tui_fzf_pick() {
         # POSIX-shell helper. Looks up $1 in the env file, masks if it ends in
         # _TOKEN/_AUTH, prints "label  value". Updates parent $printed counter
         # (no subshell — function call is in-shell in POSIX semantics).
+        # NOTE: We deliberately do NOT skip empty values. ccws_use exports
+        # empty NO_PROXY= as a real override, so the preview must reflect
+        # that the key was set (even if to empty).
         print_kv() {
             envname=$1
             label=$2
@@ -141,9 +144,10 @@ ccws_tui_fzf_pick() {
             [ -z "$raw" ] && return 0
             value=${raw#*=}
             case "$envname" in
-                *_TOKEN|*_AUTH|*_AUTH_TOKEN) value="***" ;;
+                *_TOKEN|*_AUTH|*_AUTH_TOKEN)
+                    [ -n "$value" ] && value="***"
+                    ;;
             esac
-            [ -z "$value" ] && return 0
             printf "  \033[38;2;245;194;231m%-14s\033[0m \033[38;2;205;214;244m%s\033[0m\n" "$label" "$value"
             printed=$((printed + 1))
         }
@@ -180,9 +184,13 @@ ccws_tui_fzf_pick() {
         start_bind=(--bind="start:pos($active_idx)")
     fi
 
+    # Force POSIX sh for fzf subshells (preview command). Project supports
+    # fish (share/init.fish) and zsh users have 1-indexed arrays — both would
+    # break a sh-style preview script if fzf inherited the user's $SHELL.
+    # Per-invocation override; the surrounding bash environment is untouched.
     local selected
     selected=$(
-        printf '%s\n' "$formatted" | fzf \
+        printf '%s\n' "$formatted" | SHELL=/bin/sh fzf \
             --ansi \
             --no-multi \
             --reverse \
