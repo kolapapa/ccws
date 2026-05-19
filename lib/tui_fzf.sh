@@ -178,7 +178,7 @@ ccws_tui_fzf_pick() {
     # the terminal scrollback after Esc.
     local ghost
     ghost=$(ccws_tui_ghost_hint)
-    local help_line="${c_dim}↑↓ navigate    type to filter    ↵ activate    ^u/^d preview    esc cancel${c_rs}${ghost}"
+    local help_line="${c_dim}↑↓ navigate    type to filter    ↵ activate    PgUp/PgDn preview    esc cancel${c_rs}${ghost}"
     local header_line="${c_mauve_bold}ccws · workspaces${c_rs}"$'\n'"${c_dim}${CCWS_TUI_RULE}${c_rs}"$'\n'"$help_line"
 
     # Cursor lands on active workspace if it exists in the list.
@@ -203,30 +203,33 @@ ccws_tui_fzf_pick() {
     # - bg:-1 and preview-bg:-1: let the terminal's own background show
     #   through. Overriding bg made the picker feel pasted on, especially
     #   on light-theme terminals.
-    # - --preview-window 'down,~20': auto-fit (fzf 0.44+ `~` prefix caps
-    #   at N rows but shrinks to actual content). A workspace can carry
-    #   up to ~14 env keys (CCWS_PREVIEW_KEYS has 19 entries with proxy
-    #   dedup → effective ~14). Cap of 20 leaves headroom and prevents the
-    #   "13/N truncation marker" that appeared at the prior cap of 12.
-    # - --bind 'ctrl-u/ctrl-d': preview scroll (user-discoverable via the
-    #   help line in --header). Safety net for the rare workspace that
-    #   exceeds the cap.
+    # - --preview-window 'down,55%': fixed proportion of available height,
+    #   no auto-fit-with-cap. Earlier `~20` was wrong because wrapped long
+    #   values (e.g. https://api.deepseek.com/anthropic in a narrow column)
+    #   inflate the effective row count, so a 14-key workspace renders as
+    #   21+ visual rows. 55% just dedicates real estate, fzf scrolls inside
+    #   it if content exceeds — no truncation marker spam.
+    # - --bind 'pgup/pgdn:preview-up/down,alt-k/j:preview-up/down': preview
+    #   scroll. PgUp/PgDn is the universal "scroll within" key everyone knows;
+    #   alt-k/j is a vim-flavored alternative for keyboard-only users. We
+    #   avoid ctrl-u/ctrl-d because those clash with fzf's defaults
+    #   (clear-query / half-page-down).
     local selected
     selected=$(
         printf '%s\n' "$formatted" | SHELL=/bin/sh fzf \
             --ansi \
             --no-multi \
             --reverse \
-            --height='~30' \
-            --min-height=14 \
+            --height='80%' \
+            --min-height=18 \
             --border=none \
             --header="$header_line" \
             --prompt="› " \
             --pointer="❯" \
             ${start_bind[@]+"${start_bind[@]}"} \
-            --bind='ctrl-u:preview-up,ctrl-d:preview-down' \
+            --bind='pgup:preview-up,pgdn:preview-down,alt-k:preview-up,alt-j:preview-down' \
             --preview="$preview_cmd" \
-            --preview-window='down,~20,wrap,border-top' \
+            --preview-window='down,55%,wrap,border-top' \
             --preview-label='' \
             --color="fg:#cdd6f4,bg:-1,hl:#f38ba8" \
             --color="fg+:#cdd6f4,bg+:-1,hl+:#f38ba8" \
