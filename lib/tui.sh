@@ -17,6 +17,7 @@
 #   CCWS_TUI_LOGO_LINES      → 6 raw figlet lines (parallel to CCWS_TUI_LOGO_COLORS)
 #   CCWS_TUI_LOGO_COLORS     → 6 truecolor ANSI escapes for the gradient
 #   _ccws_fzf_min_version    → return 0 if fzf ≥ 0.44 (required by ccws_tui_fzf_pick flags)
+#   _ccws_fzf_border_args    → emit --list-border=none / --input-border=none / --header-border=none if supported
 
 # shellcheck disable=SC1091
 _libdir="$(dirname "${BASH_SOURCE[0]}")"
@@ -226,6 +227,21 @@ _ccws_fzf_min_version() {
     [[ "$min" =~ ^[0-9]+$ ]] || return 1
     [[ "$maj" -gt 0 ]] && return 0
     [[ "$min" -ge 44 ]]
+}
+
+# Emit border-suppression flags one per line, ONLY for fzf builds that know
+# about them. fzf 0.55+ default-renders `list-border` / `input-border` /
+# `header-border` as a thin strip on the list-left edge (and a separator
+# above the list); we don't want that ornament. Older fzfs (0.44 — 0.54)
+# don't recognize these flags and would error on `unknown option`, so we
+# only emit them when `fzf --help` advertises them. One `fzf --help`
+# invocation per picker open (~tens of ms) — acceptable for ergonomics.
+_ccws_fzf_border_args() {
+    local help
+    help=$(fzf --help 2>&1)
+    [[ "$help" == *"--list-border"*   ]] && printf '%s\n' '--list-border=none'
+    [[ "$help" == *"--input-border"*  ]] && printf '%s\n' '--input-border=none'
+    [[ "$help" == *"--header-border"* ]] && printf '%s\n' '--header-border=none'
 }
 
 # Returns the dim footer hint string when $CCWS_NAME is set in the current
