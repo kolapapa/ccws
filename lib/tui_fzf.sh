@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # fzf-based TUI · Catppuccin Mocha palette · borderless centered layout.
 #
-# Layout: no outer frame. Indent via --margin='1,8,1,8'. Title line + 32-char
-# rule rendered in --header. List rows have no pointer marker — fzf's cursor
-# (--pointer="❯") is the only ❯ on screen. Active workspace is signaled by
-# green-bold name color + a dim "· active" suffix (color is the primary
-# signal, the suffix preserves the cue for colorblind users).
+# Layout: no outer frame, flush-left, terminal-native background. Picker
+# header is a 2-line block: 32-char dim rule + help line (title slot is
+# served by the ASCII logo printed via ccws_tui_logo before fzf launches).
+# List rows have no pointer marker — fzf's cursor (--pointer="❯") is the
+# only ❯ on screen. Active workspace is signaled by green-bold name color
+# + a dim "· active" suffix (color is the primary signal, the suffix
+# preserves the cue for colorblind users).
 #
 # Preview lives BELOW the list (--preview-window='down,9,wrap,border-top')
 # and renders ccws.env keys in CCWS_PREVIEW_KEYS order. Footer is a single
@@ -18,6 +20,8 @@ ccws_tui_fzf_pick() {
     local raw
     raw=$(ccws_tui_collect_workspaces)
     [[ -z "$raw" ]] && { ccws_log_info "no workspaces — run 'ccws add <name>'"; return 1; }
+
+    ccws_tui_logo
 
     # Column widths (plain-text, before colorization)
     local name_w=12 ep_w=24
@@ -32,7 +36,6 @@ ccws_tui_fzf_pick() {
     local c_yellow=$'\033[38;2;249;226;175m'
     local c_lavender=$'\033[38;2;180;190;254m'
     local c_dim=$'\033[38;2;108;112;134m'
-    local c_mauve_bold=$'\033[38;2;203;166;247;1m'
     local c_rs=$'\033[0m'
 
     # Build rendered rows. We compute padding on the PLAIN text length, then
@@ -171,15 +174,16 @@ ccws_tui_fzf_pick() {
         fi
     '
 
-    # Three-line header: title (mauve bold), 32-char rule (dim), help + ghost
-    # hint (dim). Footer-style help has to live in --header because fzf 0.44
-    # has no native footer slot below the preview window. Putting it last in
-    # the header keeps it visible while the user navigates without polluting
-    # the terminal scrollback after Esc.
+    # Two-line header: 32-char rule (dim), help + ghost hint (dim). The title
+    # slot is served by ccws_tui_logo printed above fzf. Footer-style help
+    # has to live in --header because fzf 0.44 has no native footer slot
+    # below the preview window. Putting it last in the header keeps it
+    # visible while the user navigates without polluting the terminal
+    # scrollback after Esc.
     local ghost
     ghost=$(ccws_tui_ghost_hint)
     local help_line="${c_dim}↑↓ navigate    type to filter    ↵ activate    PgUp/PgDn preview    esc cancel${c_rs}${ghost}"
-    local header_line="${c_mauve_bold}ccws · workspaces${c_rs}"$'\n'"${c_dim}${CCWS_TUI_RULE}${c_rs}"$'\n'"$help_line"
+    local header_line="${c_dim}${CCWS_TUI_RULE}${c_rs}"$'\n'"$help_line"
 
     # Cursor lands on active workspace if it exists in the list.
     # Note: bash 3.2 + `set -u` (which bin/ccws enables) treats an empty-array
