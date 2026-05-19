@@ -7,7 +7,7 @@ premium redesign (v0.5.1). Read this before touching any TUI / picker code.
 
 | Role | Hex | Usage |
 |------|-----|-------|
-| Title, prompt | `#cba6f7` mauve | Top-of-picker title, fzf prompt char |
+| Prompt, logo row 1 | `#cba6f7` mauve | fzf prompt char; first row of the ASCII logo gradient |
 | Key, default name | `#f5c2e7` pink | Preview key labels, non-active workspace name |
 | Active name | `#a6e3a1` green-bold | The workspace currently exported in this shell |
 | Anthropic endpoint | `#89dceb` sky | `anthropic` short label |
@@ -52,8 +52,8 @@ terminals (escapes are stripped or ignored).
    `border-top`, auto-fit height (`down,~12`) so it shrinks to the content
    instead of reserving a fixed budget that looks half-empty.
 7. **Footer is one dim line.** Help text + optional ghost-active hint
-   separated by ` · ` — embedded as `--header` row 3 since fzf 0.44 has no
-   native footer slot.
+   separated by ` · ` — embedded as the last `--header` row since fzf 0.44
+   has no native footer slot.
 8. **Color + glyph redundancy** for state signals (proxy `● proxy` / `○ direct`)
    so colorblind users can read the picker.
 9. **Label dedup in preview.** Two env vars mapping to the same display
