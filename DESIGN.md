@@ -31,7 +31,7 @@ terminals (escapes are stripped or ignored).
 | `●` | U+25CF | Proxy badge ON (with green color), preview "active in this shell" marker |
 | `○` | U+25CB | Proxy badge OFF (with dim color) |
 | `·` | U+00B7 | Active-row "· active" suffix; footer separator before ghost hint |
-| `─` | U+2500 | Horizontal divider (length 32) under title; preview border-top |
+| `─` | U+2500 | Horizontal divider (length 32) under the logo; preview border-top |
 | `…` | U+2026 | Truncation suffix |
 
 ## Layout principles
@@ -45,7 +45,7 @@ terminals (escapes are stripped or ignored).
 2. **No outer frame on operational surfaces.** No `--border=rounded`; the
    only visual separator inside the picker is the preview's `border-top`.
 3. **One job per surface.** Picker = pick. Init banner = welcome.
-4. **32-character rule** under the title; same on fzf and fallback.
+4. **32-character rule** under the logo; same on fzf and fallback.
 5. **Active state = color + dim text suffix**, never a glyph. The fzf cursor
    `❯` is the only `❯` on screen — competing glyphs are confusion.
 6. **Preview is a key/value table**, not a box. Below the list with
