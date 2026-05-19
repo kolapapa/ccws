@@ -15,8 +15,8 @@ If you have multiple Claude Code accounts (work, personal, third-party gateway l
 
 | Tool | What it does | Different from ccws |
 |---|---|---|
-| [cc-switch](https://github.com/farion1231/cc-switch) (73k★) | GUI account manager | Switches one account at a time, globally |
-| [claude-account-switcher](https://github.com/ukogan/claude-account-switcher) (2★) | CLI account isolation | No multi-endpoint, no fish |
+| [cc-switch](https://github.com/farion1231/cc-switch) | GUI account manager | Switches one account at a time, globally |
+| [claude-account-switcher](https://github.com/ukogan/claude-account-switcher) | CLI account isolation | No multi-endpoint, no fish |
 | ccws (this) | CLI + TUI + multi-endpoint + doctor + fish | Designed for terminal-heavy concurrent use |
 
 ccws complements cc-switch — different problem, different solution.
