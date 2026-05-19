@@ -11,6 +11,7 @@
 #   ccws_tui_active_index    → 0-indexed row of the active workspace in the rendered list, or -1
 #   CCWS_PREVIEW_KEYS        → ordered "env|label" pairs for the picker preview
 #   _ccws_tui_cols           → terminal column count from $COLUMNS / tput / stty
+#   _ccws_tui_lines          → terminal row count from $LINES / tput / stty
 #   _ccws_fzf_min_version    → return 0 if fzf ≥ 0.44 (required by ccws_tui_fzf_pick flags)
 
 # shellcheck disable=SC1091
@@ -112,6 +113,34 @@ _ccws_tui_cols() {
         fi
     fi
     printf '%s\n' 80
+}
+
+# Multi-source terminal height detection. Mirrors _ccws_tui_cols exactly:
+# $LINES isn't always exported into subprocesses, so fall back to tput, then
+# stty, then a default of 24 (the historic VT100 row count, matching the
+# 80-col default in _ccws_tui_cols). A reported height of 0 is treated as
+# missing and falls through to the next source — same rule as _ccws_tui_cols.
+_ccws_tui_lines() {
+    local c=""
+    if [[ -n "${LINES:-}" ]] && [[ "$LINES" =~ ^[0-9]+$ ]] && [[ "$LINES" -gt 0 ]]; then
+        printf '%s\n' "$LINES"
+        return
+    fi
+    if command -v tput >/dev/null 2>&1; then
+        c=$(tput lines 2>/dev/null)
+        if [[ "$c" =~ ^[0-9]+$ ]] && [[ "$c" -gt 0 ]]; then
+            printf '%s\n' "$c"
+            return
+        fi
+    fi
+    if command -v stty >/dev/null 2>&1; then
+        c=$(stty size 2>/dev/null | awk '{print $1}')
+        if [[ "$c" =~ ^[0-9]+$ ]] && [[ "$c" -gt 0 ]]; then
+            printf '%s\n' "$c"
+            return
+        fi
+    fi
+    printf '%s\n' 24
 }
 
 # Returns 0 (success) when fzf reports ≥ 0.44. The picker uses --height=~N,

@@ -261,6 +261,31 @@ SHIM
     [[ "$output" == *"· active"* ]]
 }
 
+@test "_ccws_tui_lines honors exported LINES when valid" {
+    export LINES=42
+    run _ccws_tui_lines
+    [[ "$output" == "42" ]]
+}
+
+@test "_ccws_tui_lines falls through to default 24 when no source reports height" {
+    # PATH-shim tput/stty to exit non-zero, unset LINES, expect default.
+    local shim_dir="$BATS_TMPDIR/lines-none-$$-$RANDOM"
+    mkdir -p "$shim_dir"
+    cat > "$shim_dir/tput" <<'SHIM'
+#!/usr/bin/env bash
+exit 1
+SHIM
+    cat > "$shim_dir/stty" <<'SHIM'
+#!/usr/bin/env bash
+exit 1
+SHIM
+    chmod +x "$shim_dir/tput" "$shim_dir/stty"
+    unset LINES
+    PATH="$shim_dir" run _ccws_tui_lines
+    [[ "$output" == "24" ]]
+    rm -rf "$shim_dir"
+}
+
 @test "ccws_tui_fzf_pick survives bin/ccws's set -u with empty start_bind array (bash 3.2 regression)" {
     # bin/ccws enables `set -euo pipefail`. Bash 3.2 treats `"${arr[@]}"` on
     # an empty array as "unbound variable" and aborts. The guard
