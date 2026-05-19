@@ -164,8 +164,11 @@ ccws_tui_active_index() {
 }
 
 ccws_tui_engine() {
+    # CCWS_NO_TUI=1 means "I don't want / can't have an interactive fzf picker"
+    # → use the numbered fallback. The fallback IS a usable picker; just simpler.
+    # Same semantic as "fzf is not installed" — both route to fallback.
     if [[ "${CCWS_NO_TUI:-0}" == "1" ]]; then
-        printf 'disabled\n'
+        printf 'fallback\n'
         return
     fi
     local cols
@@ -208,7 +211,6 @@ ccws_tui_run() {
     case "$engine" in
         fzf)      source "$_libdir/tui_fzf.sh";      ccws_tui_fzf_pick      ;;
         fallback) source "$_libdir/tui_fallback.sh"; ccws_tui_fallback_pick ;;
-        disabled) return 1 ;;
     esac
 }
 

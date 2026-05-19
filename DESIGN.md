@@ -17,9 +17,8 @@ premium redesign (v0.5.1). Read this before touching any TUI / picker code.
 | Badge off, rule, hint, footer | `#6c7086` dim | `○ direct`, dividers, footer text, ghost hint |
 | Value text | `#cdd6f4` | Preview values, default fg |
 | Warning | `#f38ba8` red-pink | `(no ccws.env)`, `(ccws.env empty or malformed)` |
-| Background | `#1e1e2e` | Main bg |
-| Accent bg | `#313244` | fzf selected row bg |
-| Preview bg | `#181825` | Preview window bg |
+| Background | terminal default (`bg:-1`) | Picker bg, preview bg |
+| Accent bg | inherited | fzf cursor row uses inverse colors via fg+/bg+ defaults |
 
 All colors are truecolor ANSI. The TUI degrades gracefully on monochrome
 terminals (escapes are stripped or ignored).
@@ -37,19 +36,30 @@ terminals (escapes are stripped or ignored).
 
 ## Layout principles
 
-1. **No outer frame on operational surfaces.** Indent via `--margin` (fzf) or
-   leading spaces (fallback), not row-content padding.
-2. **One job per surface.** Picker = pick. Init banner = welcome.
-3. **32-character rule** under the title; same on fzf and fallback.
-4. **~8 columns of left/right indent** on both engines.
+1. **Flush left, terminal-native background.** The picker fills the natural
+   terminal width (no `--margin` indent) and uses `bg:-1` so the terminal's
+   own background shows through. Earlier drafts centered the picker in a
+   colored card; the result felt pasted on and disconnected from the
+   surrounding shell. Restraint here means "don't fight the terminal," not
+   "frame the picker."
+2. **No outer frame on operational surfaces.** No `--border=rounded`; the
+   only visual separator inside the picker is the preview's `border-top`.
+3. **One job per surface.** Picker = pick. Init banner = welcome.
+4. **32-character rule** under the title; same on fzf and fallback.
 5. **Active state = color + dim text suffix**, never a glyph. The fzf cursor
    `❯` is the only `❯` on screen — competing glyphs are confusion.
 6. **Preview is a key/value table**, not a box. Below the list with
-   `border-top`, not beside it.
+   `border-top`, auto-fit height (`down,~12`) so it shrinks to the content
+   instead of reserving a fixed budget that looks half-empty.
 7. **Footer is one dim line.** Help text + optional ghost-active hint
-   separated by ` · `.
+   separated by ` · ` — embedded as `--header` row 3 since fzf 0.44 has no
+   native footer slot.
 8. **Color + glyph redundancy** for state signals (proxy `● proxy` / `○ direct`)
    so colorblind users can read the picker.
+9. **Label dedup in preview.** Two env vars mapping to the same display
+   label (`HTTPS_PROXY` + `HTTP_PROXY` → both `proxy`) only render once.
+   Otherwise `ccws add --proxy` writes both upper/lower-case vars and the
+   preview shows two identical rows.
 
 ## Preview
 

@@ -95,10 +95,14 @@ teardown() {
     fi
 }
 
-@test "ccws_tui_engine respects CCWS_NO_TUI=1" {
+@test "ccws_tui_engine routes to fallback when CCWS_NO_TUI=1" {
+    # CCWS_NO_TUI=1 means "I don't want / can't have fzf — use the simple
+    # numbered menu." Same routing as "fzf not installed". Previous version
+    # routed to a "disabled" state that returned 1 silently — confusing for
+    # users running `CCWS_NO_TUI=1 ccws` to test the fallback.
     export CCWS_NO_TUI=1
     run ccws_tui_engine
-    [[ "$output" == "disabled" ]]
+    [[ "$output" == "fallback" ]]
 }
 
 # --- ET10: IRON RULE regression tests for new ccws_tui_engine branches ---

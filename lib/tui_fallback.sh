@@ -27,9 +27,10 @@ ccws_tui_fallback_pick() {
     local dim=$'\033[38;2;108;112;134m'
     local rs=$'\033[0m'
 
-    # Title + shared rule, same vocabulary as the fzf picker. ~8 cols of
-    # indent via leading spaces (fallback can't use fzf's --margin).
-    local indent="        "
+    # Title + shared rule, same vocabulary as the fzf picker.
+    # No leading indent — flush-left, lets the terminal's own background
+    # show through (revised post-user-feedback 2026-05-19).
+    local indent=""
     printf '\n%s%sccws · workspaces%s\n' "$indent" "$mauve_b" "$rs" >&2
     printf '%s%s%s%s\n\n' "$indent" "$dim" "$CCWS_TUI_RULE" "$rs" >&2
 

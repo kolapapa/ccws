@@ -129,17 +129,24 @@ ccws_tui_fzf_pick() {
         fi
 
         printed=0
+        printed_labels=""
         printf "\n"
 
         # POSIX-shell helper. Looks up $1 in the env file, masks if it ends in
-        # _TOKEN/_AUTH, prints "label  value". Updates parent $printed counter
-        # (no subshell — function call is in-shell in POSIX semantics).
+        # _TOKEN/_AUTH, prints "label  value". Updates parent $printed counter.
+        # Label dedup: if a label was already printed (e.g. HTTPS_PROXY and
+        # HTTP_PROXY both map to "proxy"), skip subsequent matches. Avoids
+        # duplicate rows when ccws_add writes both upper- and lower-case proxy
+        # vars to the same env file.
         # NOTE: We deliberately do NOT skip empty values. ccws_use exports
         # empty NO_PROXY= as a real override, so the preview must reflect
         # that the key was set (even if to empty).
         print_kv() {
             envname=$1
             label=$2
+            case " $printed_labels " in
+                *" $label "*) return 0 ;;
+            esac
             raw=$(grep "^${envname}=" "$envfile" 2>/dev/null | head -1)
             [ -z "$raw" ] && return 0
             value=${raw#*=}
@@ -150,6 +157,7 @@ ccws_tui_fzf_pick() {
             esac
             printf "  \033[38;2;245;194;231m%-14s\033[0m \033[38;2;205;214;244m%s\033[0m\n" "$label" "$value"
             printed=$((printed + 1))
+            printed_labels="$printed_labels $label"
         }
 
 '"$_print_kv_calls"'
@@ -188,28 +196,37 @@ ccws_tui_fzf_pick() {
     # fish (share/init.fish) and zsh users have 1-indexed arrays — both would
     # break a sh-style preview script if fzf inherited the user's $SHELL.
     # Per-invocation override; the surrounding bash environment is untouched.
+    #
+    # Visual rationale (revised post-user-feedback 2026-05-19):
+    # - No --margin: floating-card centering felt empty and disconnected
+    #   from the surrounding terminal. Flush-left fills the natural width.
+    # - bg:-1 and preview-bg:-1: let the terminal's own background show
+    #   through. Overriding bg made the picker feel pasted on, especially
+    #   on light-theme terminals.
+    # - --preview-window 'down,~12': auto-fit (fzf 0.44+ `~` prefix caps
+    #   at N rows but shrinks to actual content). Fixes the "truncated /
+    #   half-empty" look when preview has fewer rows than the fixed budget.
     local selected
     selected=$(
         printf '%s\n' "$formatted" | SHELL=/bin/sh fzf \
             --ansi \
             --no-multi \
             --reverse \
-            --height='~18' \
-            --min-height=18 \
+            --height='~22' \
+            --min-height=12 \
             --border=none \
-            --margin='1,8,1,8' \
             --header="$header_line" \
             --prompt="› " \
             --pointer="❯" \
             ${start_bind[@]+"${start_bind[@]}"} \
             --preview="$preview_cmd" \
-            --preview-window='down,9,wrap,border-top' \
+            --preview-window='down,~12,wrap,border-top' \
             --preview-label='' \
-            --color="fg:#cdd6f4,bg:#1e1e2e,hl:#f38ba8" \
-            --color="fg+:#cdd6f4,bg+:#313244,hl+:#f38ba8" \
+            --color="fg:#cdd6f4,bg:-1,hl:#f38ba8" \
+            --color="fg+:#cdd6f4,bg+:-1,hl+:#f38ba8" \
             --color="info:#cba6f7,prompt:#cba6f7,pointer:#a6e3a1" \
             --color="marker:#f5e0dc,spinner:#f5e0dc,header:#cba6f7" \
-            --color="preview-fg:#cdd6f4,preview-bg:#181825,preview-border:#6c7086"
+            --color="preview-fg:#cdd6f4,preview-bg:-1,preview-border:#6c7086"
     )
 
     [[ -z "$selected" ]] && return 1
