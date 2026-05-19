@@ -100,3 +100,110 @@ teardown() {
     run ccws_tui_engine
     [[ "$output" == "disabled" ]]
 }
+
+# --- ET10: IRON RULE regression tests for new ccws_tui_engine branches ---
+
+@test "ccws_tui_engine returns fallback when COLUMNS<60 (DR-9)" {
+    export COLUMNS=50
+    run ccws_tui_engine
+    [[ "$output" == "fallback" ]]
+}
+
+@test "ccws_tui_engine returns fzf when COLUMNS>=60 and fzf present (DR-9 negative)" {
+    export COLUMNS=120
+    if command -v fzf >/dev/null 2>&1 && _ccws_fzf_min_version; then
+        run ccws_tui_engine
+        [[ "$output" == "fzf" ]]
+    else
+        skip "needs fzf >=0.44 installed"
+    fi
+}
+
+@test "ccws_tui_engine returns fallback when fzf <0.44 via PATH shim (ER-A1)" {
+    # Build a fake fzf binary that reports an old version, prepend to PATH.
+    local shim_dir="$BATS_TMPDIR/fzf-old-$$-$RANDOM"
+    mkdir -p "$shim_dir"
+    cat > "$shim_dir/fzf" <<'SHIM'
+#!/usr/bin/env bash
+[[ "$1" == "--version" ]] && { echo "0.42.0 (e60a76b)"; exit 0; }
+echo "fake fzf shouldn't be invoked for picking in this test" >&2
+exit 1
+SHIM
+    chmod +x "$shim_dir/fzf"
+    export PATH="$shim_dir:$PATH"
+    export COLUMNS=120
+    # Verify the version helper sees the shimmed version
+    run _ccws_fzf_min_version
+    [[ "$status" -ne 0 ]]
+    # And that the engine routes to fallback as a result
+    run ccws_tui_engine
+    [[ "$output" == "fallback" ]]
+    rm -rf "$shim_dir"
+}
+
+# --- ET9: ccws_tui_ghost_hint coverage ---
+
+@test "ccws_tui_ghost_hint returns empty when CCWS_NAME unset" {
+    unset CCWS_NAME
+    run ccws_tui_ghost_hint
+    [[ -z "$output" ]]
+}
+
+@test "ccws_tui_ghost_hint returns empty when CCWS_NAME points at existing workspace" {
+    export CCWS_NAME=work
+    run ccws_tui_ghost_hint
+    [[ -z "$output" ]]
+}
+
+@test "ccws_tui_ghost_hint returns hint when CCWS_NAME points at missing workspace" {
+    export CCWS_NAME=deleted-workspace
+    run ccws_tui_ghost_hint
+    [[ -n "$output" ]]
+    [[ "$output" == *"deleted-workspace"* ]]
+    [[ "$output" == *"set but workspace not found"* ]]
+}
+
+# --- ET9: ccws_tui_active_index coverage ---
+
+@test "ccws_tui_active_index returns -1 when CCWS_NAME unset" {
+    unset CCWS_NAME
+    run ccws_tui_active_index
+    [[ "$output" == "-1" ]]
+}
+
+@test "ccws_tui_active_index returns -1 when CCWS_NAME doesn't match any workspace" {
+    export CCWS_NAME=nonexistent
+    run ccws_tui_active_index
+    [[ "$output" == "-1" ]]
+}
+
+@test "ccws_tui_active_index returns 0-indexed position of matching workspace" {
+    export CCWS_NAME=work
+    run ccws_tui_active_index
+    [[ "$output" =~ ^[0-9]+$ ]]
+    # work is added before personal in setup(); whichever directory iteration
+    # order resolves to should be a non-negative integer.
+    [[ "$output" -ge 0 ]]
+}
+
+# --- ET9: CCWS_PREVIEW_KEYS data integrity ---
+
+@test "CCWS_PREVIEW_KEYS is non-empty and every entry has env|label form" {
+    [[ "${#CCWS_PREVIEW_KEYS[@]}" -gt 0 ]]
+    local entry
+    for entry in "${CCWS_PREVIEW_KEYS[@]}"; do
+        # Must contain exactly one pipe, with non-empty env and label.
+        [[ "$entry" == *"|"* ]]
+        [[ -n "${entry%%|*}" ]]
+        [[ -n "${entry#*|}" ]]
+    done
+}
+
+# NOTE: Preview ordering and (ccws.env empty or malformed) coverage are NOT
+# tested here. They live inside the single-quoted preview_cmd string in
+# tui_fzf.sh, which fzf passes to a subshell. Direct bats coverage would
+# require extracting the preview into a callable function (e.g.
+# _ccws_tui_preview <ws_dir>) and re-wiring tui_fzf.sh to use it via fzf's
+# --preview="bash -c '...'" pattern. That's a real refactor — deferred to a
+# follow-up PR. Until then these paths are covered by manual QA per the plan's
+# success criteria.
