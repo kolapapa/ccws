@@ -170,6 +170,9 @@ ccws_tui_fzf_pick() {
     local header_line="${c_mauve_bold}ccws · workspaces${c_rs}"$'\n'"${c_dim}${CCWS_TUI_RULE}${c_rs}"$'\n'"$help_line"
 
     # Cursor lands on active workspace if it exists in the list.
+    # Note: bash 3.2 + `set -u` (which bin/ccws enables) treats an empty-array
+    # expansion `"${arr[@]}"` as "unbound variable" and aborts. Use the
+    # `${arr[@]+"${arr[@]}"}` guard so the flag is only injected when set.
     local active_idx
     active_idx=$(ccws_tui_active_index)
     local start_bind=()
@@ -190,7 +193,7 @@ ccws_tui_fzf_pick() {
             --header="$header_line" \
             --prompt="› " \
             --pointer="❯" \
-            "${start_bind[@]}" \
+            ${start_bind[@]+"${start_bind[@]}"} \
             --preview="$preview_cmd" \
             --preview-window='down,9,wrap,border-top' \
             --preview-label='' \

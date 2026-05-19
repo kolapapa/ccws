@@ -257,6 +257,35 @@ SHIM
     [[ "$output" == *"· active"* ]]
 }
 
+@test "ccws_tui_fzf_pick survives bin/ccws's set -u with empty start_bind array (bash 3.2 regression)" {
+    # bin/ccws enables `set -euo pipefail`. Bash 3.2 treats `"${arr[@]}"` on
+    # an empty array as "unbound variable" and aborts. The guard
+    # `${arr[@]+"${arr[@]}"}` is the standard bash 3.2-safe pattern.
+    # Regression for user-reported bug: ccws picker errored with
+    # `start_bind[@]: unbound variable` when CCWS_NAME was unset (so
+    # start_bind stayed empty).
+    if ! command -v fzf >/dev/null 2>&1 || ! _ccws_fzf_min_version; then
+        skip "needs fzf >=0.44 installed"
+    fi
+    unset CCWS_NAME
+    run bash -c "
+        set -euo pipefail
+        export HOME='$HOME'
+        source '$CCWS_PROJECT_ROOT/lib/common.sh'
+        source '$CCWS_PROJECT_ROOT/lib/env.sh'
+        source '$CCWS_PROJECT_ROOT/lib/lock.sh'
+        source '$CCWS_PROJECT_ROOT/lib/symlink_farm.sh'
+        source '$CCWS_PROJECT_ROOT/lib/tui.sh'
+        source '$CCWS_PROJECT_ROOT/lib/tui_fzf.sh'
+        # Stub fzf so the function returns without needing a tty.
+        fzf() { printf 'work\n'; }
+        export -f fzf
+        ccws_tui_fzf_pick </dev/null
+    "
+    # If the bug regresses, output would contain 'unbound variable'.
+    [[ "$output" != *"unbound variable"* ]]
+}
+
 @test "ccws_tui_fallback_pick footer includes ghost hint when CCWS_NAME points at missing workspace" {
     export CCWS_NAME=deleted-workspace
     run bash -c "
