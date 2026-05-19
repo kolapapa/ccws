@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Optional gum-based polish.
 
+# Ceremonial surface — used only by `ccws init` first-run welcome.
+# Intentional border contrast vs the picker's no-frame style.
+# See DESIGN.md "Surface registry" before changing this banner.
 ccws_tui_banner() {
     if command -v gum >/dev/null 2>&1; then
         gum style \

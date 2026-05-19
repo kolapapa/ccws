@@ -73,17 +73,31 @@ ccws_tui_truncate() {
 
 # Multi-source terminal width detection. $COLUMNS isn't always exported into
 # subprocesses (notably the `claude` wrapper that invokes `ccws`), so fall
-# back to tput, then stty, then a default of 80.
+# back to tput, then stty, then a default of 80. A reported width of 0 (tty
+# absent in non-interactive contexts like bats / CI) is treated as missing
+# and falls through to the next source — otherwise the engine would always
+# route to the fallback in CI even on machines with fzf installed.
 _ccws_tui_cols() {
-    if [[ -n "${COLUMNS:-}" ]]; then
+    local c=""
+    if [[ -n "${COLUMNS:-}" ]] && [[ "$COLUMNS" =~ ^[0-9]+$ ]] && [[ "$COLUMNS" -gt 0 ]]; then
         printf '%s\n' "$COLUMNS"
-    elif command -v tput >/dev/null 2>&1; then
-        tput cols 2>/dev/null || echo 80
-    elif command -v stty >/dev/null 2>&1; then
-        stty size 2>/dev/null | awk '{print $2}' || echo 80
-    else
-        echo 80
+        return
     fi
+    if command -v tput >/dev/null 2>&1; then
+        c=$(tput cols 2>/dev/null)
+        if [[ "$c" =~ ^[0-9]+$ ]] && [[ "$c" -gt 0 ]]; then
+            printf '%s\n' "$c"
+            return
+        fi
+    fi
+    if command -v stty >/dev/null 2>&1; then
+        c=$(stty size 2>/dev/null | awk '{print $2}')
+        if [[ "$c" =~ ^[0-9]+$ ]] && [[ "$c" -gt 0 ]]; then
+            printf '%s\n' "$c"
+            return
+        fi
+    fi
+    echo 80
 }
 
 # Returns 0 (success) when fzf reports ≥ 0.44. The picker uses --height=~N,
