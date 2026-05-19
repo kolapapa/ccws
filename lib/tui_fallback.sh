@@ -2,10 +2,11 @@
 # Pure-bash fallback TUI — numbered menu, Catppuccin Mocha colors.
 #
 # Used when fzf is not installed, fzf < 0.44, COLUMNS < 60, or CCWS_NO_TUI=1.
-# Mirrors the fzf picker's visual language: 32-char rule, ~8-col indent,
-# no opening/closing list rules, no in-row pointer marker. The numbered
-# prefix (1), 2)...) stays since that's how the user inputs the selection.
-# See DESIGN.md "Surface registry" for the cross-engine alignment rules.
+# Mirrors the fzf picker's visual language: ASCII logo above (via
+# ccws_tui_logo), 32-char rule, no opening/closing list rules, no in-row
+# pointer marker. The numbered prefix (1), 2)...) stays since that's how the
+# user inputs the selection. See DESIGN.md "Surface registry" for the
+# cross-engine alignment rules.
 
 ccws_tui_fallback_pick() {
     local lines=()
@@ -17,8 +18,9 @@ ccws_tui_fallback_pick() {
         return 1
     fi
 
+    ccws_tui_logo
+
     # Catppuccin Mocha truecolor escapes
-    local mauve_b=$'\033[38;2;203;166;247;1m'
     local pink=$'\033[38;2;245;194;231m'
     local sky=$'\033[38;2;137;220;235m'
     local green=$'\033[38;2;166;227;161m'
@@ -27,11 +29,10 @@ ccws_tui_fallback_pick() {
     local dim=$'\033[38;2;108;112;134m'
     local rs=$'\033[0m'
 
-    # Title + shared rule, same vocabulary as the fzf picker.
+    # Rule, same vocabulary as the fzf picker.
     # No leading indent — flush-left, lets the terminal's own background
     # show through (revised post-user-feedback 2026-05-19).
     local indent=""
-    printf '\n%s%sccws · workspaces%s\n' "$indent" "$mauve_b" "$rs" >&2
     printf '%s%s%s%s\n\n' "$indent" "$dim" "$CCWS_TUI_RULE" "$rs" >&2
 
     local i=1
