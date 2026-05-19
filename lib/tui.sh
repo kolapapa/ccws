@@ -12,6 +12,7 @@
 #   CCWS_PREVIEW_KEYS        → ordered "env|label" pairs for the picker preview
 #   _ccws_tui_cols           → terminal column count from $COLUMNS / tput / stty
 #   _ccws_tui_lines          → terminal row count from $LINES / tput / stty
+#   _ccws_tui_logo_lines     → emit 6 colored logo lines to stdout (gated, for --header embed)
 #   ccws_tui_logo            → print 6-line ANSI Shadow logo to stderr (gated)
 #   CCWS_TUI_LOGO_LINES      → 6 raw figlet lines (parallel to CCWS_TUI_LOGO_COLORS)
 #   CCWS_TUI_LOGO_COLORS     → 6 truecolor ANSI escapes for the gradient
@@ -171,16 +172,11 @@ _ccws_tui_lines() {
     printf '%s\n' 24
 }
 
-# Print the 6-line ANSI Shadow ASCII logo to stderr, or return silently if
-# any gate fails. Gates (short-circuit, cheapest first):
-#   1. CCWS_NO_LOGO=1            — user opt-out
-#   2. stderr is not a tty       — redirected / CI / non-interactive
-#   3. COLUMNS < 36              — logo is 34 cols wide, no point cramming
-#   4. LINES < 24                — would squeeze the picker off-screen
-#
-# CCWS_TUI_LOGO_FORCE=1 bypasses the tty check ONLY, for bats coverage of
-# the size gates. Not documented for end users.
-ccws_tui_logo() {
+# Return the 6 colored logo lines to stdout (no leading/trailing blanks), or
+# return empty if any gate fails. Same gates as ccws_tui_logo (see below).
+# This form exists so callers can embed the logo into fzf's --header so it
+# enters/exits alt-screen with the picker, leaving no scrollback residue.
+_ccws_tui_logo_lines() {
     [[ "${CCWS_NO_LOGO:-0}" == "1" ]] && return 0
     if [[ "${CCWS_TUI_LOGO_FORCE:-0}" != "1" ]] && [[ ! -t 2 ]]; then
         return 0
@@ -190,13 +186,30 @@ ccws_tui_logo() {
     lines=$(_ccws_tui_lines)
     [[ "$cols"  -lt 36 ]] && return 0
     [[ "$lines" -lt 24 ]] && return 0
-
     local rs=$'\033[0m' i
-    printf '\n' >&2
     for i in 0 1 2 3 4 5; do
-        printf '%s%s%s\n' "${CCWS_TUI_LOGO_COLORS[i]}" "${CCWS_TUI_LOGO_LINES[i]}" "$rs" >&2
+        printf '%s%s%s\n' "${CCWS_TUI_LOGO_COLORS[i]}" "${CCWS_TUI_LOGO_LINES[i]}" "$rs"
     done
-    printf '\n' >&2
+}
+
+# Print the 6-line ANSI Shadow ASCII logo to stderr, or return silently if
+# any gate fails. Gates (short-circuit, cheapest first):
+#   1. CCWS_NO_LOGO=1            — user opt-out
+#   2. stderr is not a tty       — redirected / CI / non-interactive
+#   3. COLUMNS < 36              — logo is 34 cols wide, no point cramming
+#   4. LINES < 24                — would squeeze the picker off-screen
+#
+# CCWS_TUI_LOGO_FORCE=1 bypasses the tty check ONLY, for bats coverage of
+# the size gates. Not documented for end users.
+#
+# Used by tui_fallback (which has no alt-screen to embed into). The fzf
+# picker uses _ccws_tui_logo_lines + --header instead, so the logo and
+# picker enter/exit alt-screen together.
+ccws_tui_logo() {
+    local body
+    body=$(_ccws_tui_logo_lines)
+    [[ -z "$body" ]] && return 0
+    printf '\n%s\n\n' "$body" >&2
 }
 
 # Returns 0 (success) when fzf reports ≥ 0.44. The picker uses --height=~N,

@@ -403,3 +403,36 @@ SHIM
     count=$(printf '%s\n' "$output" | grep -cE '\S')
     [[ "$count" -eq 6 ]]
 }
+
+@test "_ccws_tui_logo_lines emits 6 colored lines to stdout when gates pass" {
+    # The fzf picker embeds this into --header so the logo enters/exits
+    # alt-screen with the picker. Verify it returns exactly 6 non-blank
+    # lines with NO leading/trailing blank padding (unlike ccws_tui_logo).
+    run bash -c "
+        export CCWS_TUI_LOGO_FORCE=1
+        export COLUMNS=80
+        export LINES=40
+        unset CCWS_NO_LOGO
+        source '$CCWS_PROJECT_ROOT/lib/common.sh'
+        source '$CCWS_PROJECT_ROOT/lib/env.sh'
+        source '$CCWS_PROJECT_ROOT/lib/tui.sh'
+        _ccws_tui_logo_lines
+    "
+    [[ "$status" -eq 0 ]]
+    local total non_empty
+    total=$(printf '%s\n' "$output" | wc -l | tr -d ' ')
+    non_empty=$(printf '%s\n' "$output" | grep -cE '\S')
+    # Output should be exactly 6 non-blank lines, no padding rows.
+    [[ "$total" -eq 6 ]]
+    [[ "$non_empty" -eq 6 ]]
+}
+
+@test "_ccws_tui_logo_lines returns empty when CCWS_NO_LOGO=1" {
+    export CCWS_NO_LOGO=1
+    export CCWS_TUI_LOGO_FORCE=1
+    export COLUMNS=80
+    export LINES=40
+    run _ccws_tui_logo_lines
+    [[ "$status" -eq 0 ]]
+    [[ -z "$output" ]]
+}

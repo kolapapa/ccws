@@ -1,13 +1,21 @@
 #!/usr/bin/env bash
 # fzf-based TUI · Catppuccin Mocha palette · borderless centered layout.
 #
-# Layout: no outer frame, flush-left, terminal-native background. Picker
-# header is a 2-line block: 32-char dim rule + help line (title slot is
-# served by the ASCII logo printed via ccws_tui_logo before fzf launches).
+# Layout: no outer frame, flush-left, terminal-native background. fzf runs
+# in full-screen alt-screen mode (no --height) so the entire picker UI —
+# logo + rule + help + list + preview — enters and exits the alt-screen
+# buffer together. After Esc / activation, the alt-screen closes and the
+# user is back at their original prompt; nothing is left in scrollback.
+#
+# Header layout is 8 rows: 6-row ASCII logo + 32-char dim rule + help row.
+# Logo gating happens via _ccws_tui_logo_lines (CCWS_NO_LOGO=1, cols<36,
+# lines<24, non-tty). When the logo is gated off, header collapses to 2 rows.
+#
 # List rows have no pointer marker — fzf's cursor (--pointer="❯") is the
 # only ❯ on screen. Active workspace is signaled by green-bold name color
 # + a dim "· active" suffix (color is the primary signal, the suffix
-# preserves the cue for colorblind users).
+# preserves the cue for colorblind users). Scrollbar is forced transparent
+# (--color="scrollbar:-1") so list rows don't grow a left-edge divider.
 #
 # Preview lives BELOW the list (--preview-window='down,9,wrap,border-top')
 # and renders ccws.env keys in CCWS_PREVIEW_KEYS order. Footer is a single
@@ -20,8 +28,6 @@ ccws_tui_fzf_pick() {
     local raw
     raw=$(ccws_tui_collect_workspaces)
     [[ -z "$raw" ]] && { ccws_log_info "no workspaces — run 'ccws add <name>'"; return 1; }
-
-    ccws_tui_logo
 
     # Column widths (plain-text, before colorization)
     local name_w=12 ep_w=24
@@ -174,16 +180,30 @@ ccws_tui_fzf_pick() {
         fi
     '
 
-    # Two-line header: 32-char rule (dim), help + ghost hint (dim). The title
-    # slot is served by ccws_tui_logo printed above fzf. Footer-style help
-    # has to live in --header because fzf 0.44 has no native footer slot
-    # below the preview window. Putting it last in the header keeps it
-    # visible while the user navigates without polluting the terminal
-    # scrollback after Esc.
+    # Header layout:
+    #   logo (6 colored rows, optional — suppressed when _ccws_tui_logo_lines
+    #         gates trigger: CCWS_NO_LOGO=1 / cols<36 / lines<24 / non-tty)
+    #   32-char dim rule
+    #   help + ghost hint (dim)
+    #
+    # Logo is embedded INTO --header (not printf'd before fzf) so it enters
+    # and exits alt-screen along with the picker — no scrollback residue
+    # after Esc, which is what every user expects.
+    #
+    # Footer-style help has to live in --header because fzf 0.44 has no native
+    # footer slot below the preview window. Putting it last in the header keeps
+    # it visible while the user navigates.
     local ghost
     ghost=$(ccws_tui_ghost_hint)
     local help_line="${c_dim}↑↓ navigate    type to filter    ↵ activate    PgUp/PgDn preview    esc cancel${c_rs}${ghost}"
-    local header_line="${c_dim}${CCWS_TUI_RULE}${c_rs}"$'\n'"$help_line"
+    local logo_block
+    logo_block=$(_ccws_tui_logo_lines)
+    local header_line
+    if [[ -n "$logo_block" ]]; then
+        header_line="${logo_block}"$'\n'"${c_dim}${CCWS_TUI_RULE}${c_rs}"$'\n'"$help_line"
+    else
+        header_line="${c_dim}${CCWS_TUI_RULE}${c_rs}"$'\n'"$help_line"
+    fi
 
     # Cursor lands on active workspace if it exists in the list.
     # Note: bash 3.2 + `set -u` (which bin/ccws enables) treats an empty-array
@@ -201,12 +221,19 @@ ccws_tui_fzf_pick() {
     # break a sh-style preview script if fzf inherited the user's $SHELL.
     # Per-invocation override; the surrounding bash environment is untouched.
     #
-    # Visual rationale (revised post-user-feedback 2026-05-19):
+    # Visual rationale (revised post-user-feedback 2026-05-20):
+    # - Full-screen (no --height/--min-height): fzf runs in alt-screen so the
+    #   logo embedded in --header enters/exits with the picker. With --height
+    #   the logo would stay in main-screen scrollback after Esc, which felt
+    #   like noise after running `ccws` repeatedly.
     # - No --margin: floating-card centering felt empty and disconnected
     #   from the surrounding terminal. Flush-left fills the natural width.
     # - bg:-1 and preview-bg:-1: let the terminal's own background show
     #   through. Overriding bg made the picker feel pasted on, especially
     #   on light-theme terminals.
+    # - --color="scrollbar:-1": forces the scrollbar transparent. fzf draws
+    #   an inactive scrollbar even when the list fits the viewport; on dark
+    #   themes it reads as a stray vertical line on each list row.
     # - --preview-window 'down,55%': fixed proportion of available height,
     #   no auto-fit-with-cap. Earlier `~20` was wrong because wrapped long
     #   values (e.g. https://api.deepseek.com/anthropic in a narrow column)
@@ -224,8 +251,6 @@ ccws_tui_fzf_pick() {
             --ansi \
             --no-multi \
             --reverse \
-            --height='80%' \
-            --min-height=18 \
             --border=none \
             --header="$header_line" \
             --prompt="› " \
@@ -239,6 +264,7 @@ ccws_tui_fzf_pick() {
             --color="fg+:#cdd6f4,bg+:-1,hl+:#f38ba8" \
             --color="info:#cba6f7,prompt:#cba6f7,pointer:#a6e3a1" \
             --color="marker:#f5e0dc,spinner:#f5e0dc,header:#cba6f7" \
+            --color="scrollbar:-1" \
             --color="preview-fg:#cdd6f4,preview-bg:-1,preview-border:#6c7086"
     )
 
