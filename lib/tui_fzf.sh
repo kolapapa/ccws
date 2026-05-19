@@ -101,86 +101,73 @@ ccws_tui_fzf_pick() {
     # ccws.env are silently skipped. Malformed/empty env files show a single
     # dim warning line so the user knows preview wasn't broken.
     #
-    # IMPORTANT (bash 3.2): the preview command is a single-quoted string passed
-    # to fzf. It runs in a sub-shell launched by fzf. Existing `case "$k"`
-    # inside this string works because it isn't nested inside $(...) command
-    # substitution. If you ever refactor to embed $(...) here, switch the
-    # `case` to `if/elif` chains (see commit 9ec8bde and lib/tui_fzf.sh near
-    # the endpoint color block).
-    #
-    # We embed CCWS_PREVIEW_KEYS by expanding it into the single-quoted string
-    # at definition time (concatenated newline-separated). The preview
-    # sub-shell receives a static list of "env|label" pairs, no env var
-    # passing needed.
-    local _preview_keys_block=""
-    local _pk
+    # IMPORTANT: this script runs in the user's $SHELL because fzf does not
+    # force bash. On default macOS the user's shell is zsh, whose arrays are
+    # 1-indexed — so bash array logic here would silently miscount and report
+    # valid env files as malformed. The implementation below is POSIX-shell
+    # compatible: no arrays, only [ ], case/esac, grep + parameter expansion.
+    # The list of preview keys is baked in as a sequence of print_kv calls at
+    # assembly time, so no embedded data ever needs to flow through the
+    # subshell.
+    local _print_kv_calls=""
+    local _pk _envname _label
     for _pk in "${CCWS_PREVIEW_KEYS[@]}"; do
-        _preview_keys_block+="$_pk"$'\n'
+        _envname="${_pk%%|*}"
+        _label="${_pk#*|}"
+        _print_kv_calls+="    print_kv ${_envname} ${_label}"$'\n'
     done
 
     # shellcheck disable=SC2016
     local preview_cmd='
         line={}
         ws_name=$(printf "%s" "$line" | sed "s/\x1b\[[0-9;]*m//g" | awk "{print \$1}")
-        ws_dir="'"$HOME"'/.ccws/workspaces/$ws_name"
-        envfile="$ws_dir/ccws.env"
+        envfile="'"$(ccws_workspaces_dir)"'/$ws_name/ccws.env"
 
-        if [[ ! -f "$envfile" ]]; then
+        if [ ! -f "$envfile" ]; then
             printf "\n  \033[38;2;243;139;168m(no ccws.env)\033[0m\n"
             exit 0
         fi
 
-        # Parse ccws.env into parallel arrays (bash 3.2: no assoc arrays).
-        keys=()
-        vals=()
-        while IFS="=" read -r k v; do
-            [[ -z "$k" || "$k" == \#* ]] && continue
-            case "$k" in
-                *_TOKEN|*_AUTH|*_AUTH_TOKEN) v="***" ;;
-            esac
-            keys+=("$k")
-            vals+=("$v")
-        done < <(grep -vE "^(#|$)" "$envfile")
-
-        # Iterate the fixed preview order. Each line is "ENV_VAR|label".
-        # Look up each ENV_VAR in the parsed keys; if present, print label + value.
         printed=0
-        ORDER='"'$_preview_keys_block'"'
         printf "\n"
-        while IFS= read -r row; do
-            [[ -z "$row" ]] && continue
-            envname=${row%%|*}
-            label=${row#*|}
-            i=0
-            while [[ $i -lt ${#keys[@]} ]]; do
-                if [[ "${keys[$i]}" == "$envname" ]]; then
-                    printf "  \033[38;2;245;194;231m%-14s\033[0m \033[38;2;205;214;244m%s\033[0m\n" \
-                        "$label" "${vals[$i]}"
-                    printed=$((printed + 1))
-                    break
-                fi
-                i=$((i + 1))
-            done
-        done <<< "$ORDER"
 
-        if [[ "$printed" -eq 0 ]]; then
+        # POSIX-shell helper. Looks up $1 in the env file, masks if it ends in
+        # _TOKEN/_AUTH, prints "label  value". Updates parent $printed counter
+        # (no subshell — function call is in-shell in POSIX semantics).
+        print_kv() {
+            envname=$1
+            label=$2
+            raw=$(grep "^${envname}=" "$envfile" 2>/dev/null | head -1)
+            [ -z "$raw" ] && return 0
+            value=${raw#*=}
+            case "$envname" in
+                *_TOKEN|*_AUTH|*_AUTH_TOKEN) value="***" ;;
+            esac
+            [ -z "$value" ] && return 0
+            printf "  \033[38;2;245;194;231m%-14s\033[0m \033[38;2;205;214;244m%s\033[0m\n" "$label" "$value"
+            printed=$((printed + 1))
+        }
+
+'"$_print_kv_calls"'
+        if [ "$printed" -eq 0 ]; then
             printf "  \033[38;2;243;139;168m(ccws.env empty or malformed)\033[0m\n"
         fi
 
         # Final line: dim active indicator, only when this row IS the active workspace.
-        if [[ -n "${CCWS_NAME:-}" && "$CCWS_NAME" == "$ws_name" ]]; then
+        if [ -n "${CCWS_NAME:-}" ] && [ "${CCWS_NAME:-}" = "$ws_name" ]; then
             printf "\n  \033[38;2;166;227;161m● active in this shell\033[0m\n"
         fi
     '
 
-    # Two-line header: title (mauve bold) + 32-char rule (dim).
-    local rule="────────────────────────────────"
-    local header_line="${c_mauve_bold}ccws · workspaces${c_rs}"$'\n'"${c_dim}${rule}${c_rs}"
-
-    # Footer: dim help + optional ghost-active hint.
+    # Three-line header: title (mauve bold), 32-char rule (dim), help + ghost
+    # hint (dim). Footer-style help has to live in --header because fzf 0.44
+    # has no native footer slot below the preview window. Putting it last in
+    # the header keeps it visible while the user navigates without polluting
+    # the terminal scrollback after Esc.
     local ghost
     ghost=$(ccws_tui_ghost_hint)
-    local footer_line="${c_dim}↑↓ navigate    type to filter    ↵ activate    esc cancel${c_rs}${ghost}"
+    local help_line="${c_dim}↑↓ navigate    type to filter    ↵ activate    esc cancel${c_rs}${ghost}"
+    local header_line="${c_mauve_bold}ccws · workspaces${c_rs}"$'\n'"${c_dim}${CCWS_TUI_RULE}${c_rs}"$'\n'"$help_line"
 
     # Cursor lands on active workspace if it exists in the list.
     local active_idx
@@ -213,11 +200,6 @@ ccws_tui_fzf_pick() {
             --color="marker:#f5e0dc,spinner:#f5e0dc,header:#cba6f7" \
             --color="preview-fg:#cdd6f4,preview-bg:#181825,preview-border:#6c7086"
     )
-
-    # Footer is rendered AFTER fzf exits (fzf has no native footer slot below
-    # the preview). This keeps the picker height stable while still surfacing
-    # the help line + ghost hint.
-    printf '%b\n' "$footer_line" >&2
 
     [[ -z "$selected" ]] && return 1
     # Strip ANSI then take the first whitespace-separated token (the name column).

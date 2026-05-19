@@ -21,9 +21,15 @@ _libdir="$(dirname "${BASH_SOURCE[0]}")"
 # Preview key/value table — env-var name | display label, rendered in this order.
 # Keys present in ccws.env but absent from this list are silently NOT shown in
 # the preview. To expose a new key, add it here. (See DESIGN.md "Preview".)
+# IMPORTANT: every proxy env var that ccws_env_has_proxy accepts (HTTP_PROXY,
+# HTTPS_PROXY, ALL_PROXY in both upper and lower case) appears here, otherwise
+# a workspace could route Claude traffic through a proxy that the preview
+# hides from the user.
 CCWS_PREVIEW_KEYS=(
     "ANTHROPIC_BASE_URL|endpoint"
     "HTTPS_PROXY|proxy"
+    "https_proxy|proxy"
+    "HTTP_PROXY|proxy"
     "http_proxy|proxy"
     "ANTHROPIC_MODEL|model"
     "ANTHROPIC_AUTH_TOKEN|token"
@@ -35,10 +41,18 @@ CCWS_PREVIEW_KEYS=(
     "CLAUDE_CODE_EFFORT_LEVEL|effort"
     "CLAUDE_CODE_SUBAGENT_MODEL|subagent"
     "ALL_PROXY|socks"
+    "all_proxy|socks"
     "NO_PROXY|no_proxy"
+    "no_proxy|no_proxy"
     "CCWS_BINARY|binary"
 )
 export CCWS_PREVIEW_KEYS
+
+# Shared 32-char horizontal divider. Used by both fzf and fallback pickers to
+# keep the cross-engine alignment in DESIGN.md L43 honest — change here and
+# both surfaces follow.
+CCWS_TUI_RULE='────────────────────────────────'
+export CCWS_TUI_RULE
 
 # Normalize an endpoint URL to a short, fixed-shape label for the picker list.
 # Examples:
@@ -97,7 +111,7 @@ _ccws_tui_cols() {
             return
         fi
     fi
-    echo 80
+    printf '%s\n' 80
 }
 
 # Returns 0 (success) when fzf reports ≥ 0.44. The picker uses --height=~N,

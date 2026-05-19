@@ -27,11 +27,11 @@ ccws_tui_fallback_pick() {
     local dim=$'\033[38;2;108;112;134m'
     local rs=$'\033[0m'
 
-    # Title + 32-char rule, same vocabulary as the fzf picker. ~8 cols of
+    # Title + shared rule, same vocabulary as the fzf picker. ~8 cols of
     # indent via leading spaces (fallback can't use fzf's --margin).
     local indent="        "
     printf '\n%s%sccws · workspaces%s\n' "$indent" "$mauve_b" "$rs" >&2
-    printf '%s%s────────────────────────────────%s\n\n' "$indent" "$dim" "$rs" >&2
+    printf '%s%s%s%s\n\n' "$indent" "$dim" "$CCWS_TUI_RULE" "$rs" >&2
 
     local i=1
     local names=()
@@ -58,7 +58,9 @@ ccws_tui_fallback_pick() {
         fi
 
         # Endpoint: normalized short label + truncated + colored by family.
-        # Must be if/elif (not case) for bash 3.2 compat inside subshell contexts.
+        # if/elif here mirrors tui_fzf.sh, where the same logic IS inside
+        # $(...) and bash 3.2 forbids `case` there. Keeping the chains the
+        # same shape on both engines makes future edits land in lock-step.
         local e_short
         e_short=$(ccws_tui_short_endpoint "$e")
         local ep_w=24
