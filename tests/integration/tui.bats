@@ -207,3 +207,67 @@ SHIM
 # --preview="bash -c '...'" pattern. That's a real refactor — deferred to a
 # follow-up PR. Until then these paths are covered by manual QA per the plan's
 # success criteria.
+
+# --- Coverage gap fillers (ship-audit) ---
+
+@test "_ccws_tui_cols honors exported COLUMNS when valid" {
+    export COLUMNS=137
+    run _ccws_tui_cols
+    [[ "$output" == "137" ]]
+}
+
+@test "_ccws_tui_cols falls through to default 80 when no source reports width" {
+    # Strip COLUMNS and force tput/stty to report 0/unusable by isolating PATH
+    # to a directory containing only stub binaries that exit non-zero.
+    local shim_dir="$BATS_TMPDIR/cols-none-$$-$RANDOM"
+    mkdir -p "$shim_dir"
+    cat > "$shim_dir/tput" <<'SHIM'
+#!/usr/bin/env bash
+exit 1
+SHIM
+    cat > "$shim_dir/stty" <<'SHIM'
+#!/usr/bin/env bash
+exit 1
+SHIM
+    chmod +x "$shim_dir/tput" "$shim_dir/stty"
+    unset COLUMNS
+    PATH="$shim_dir" run _ccws_tui_cols
+    [[ "$output" == "80" ]]
+    rm -rf "$shim_dir"
+}
+
+@test "_ccws_fzf_min_version returns non-zero when fzf is absent" {
+    # Empty PATH so `fzf --version` fails → version string empty → return 1.
+    PATH="" run _ccws_fzf_min_version
+    [[ "$status" -ne 0 ]]
+}
+
+@test "ccws_tui_fallback_pick renders '· active' suffix for active workspace" {
+    export CCWS_NAME=work
+    # Pipe 'q' to quit immediately — we only care about the rendered list (stderr).
+    run bash -c "
+        export HOME='$HOME'
+        export CCWS_NAME=work
+        source '$CCWS_PROJECT_ROOT/lib/common.sh'
+        source '$CCWS_PROJECT_ROOT/lib/env.sh'
+        source '$CCWS_PROJECT_ROOT/lib/tui.sh'
+        source '$CCWS_PROJECT_ROOT/lib/tui_fallback.sh'
+        printf 'q\n' | ccws_tui_fallback_pick 2>&1
+    "
+    [[ "$output" == *"· active"* ]]
+}
+
+@test "ccws_tui_fallback_pick footer includes ghost hint when CCWS_NAME points at missing workspace" {
+    export CCWS_NAME=deleted-workspace
+    run bash -c "
+        export HOME='$HOME'
+        export CCWS_NAME=deleted-workspace
+        source '$CCWS_PROJECT_ROOT/lib/common.sh'
+        source '$CCWS_PROJECT_ROOT/lib/env.sh'
+        source '$CCWS_PROJECT_ROOT/lib/tui.sh'
+        source '$CCWS_PROJECT_ROOT/lib/tui_fallback.sh'
+        printf 'q\n' | ccws_tui_fallback_pick 2>&1
+    "
+    [[ "$output" == *"deleted-workspace"* ]]
+    [[ "$output" == *"set but workspace not found"* ]]
+}
