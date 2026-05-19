@@ -12,6 +12,9 @@
 #   CCWS_PREVIEW_KEYS        → ordered "env|label" pairs for the picker preview
 #   _ccws_tui_cols           → terminal column count from $COLUMNS / tput / stty
 #   _ccws_tui_lines          → terminal row count from $LINES / tput / stty
+#   ccws_tui_logo            → print 6-line ANSI Shadow logo to stderr (gated)
+#   CCWS_TUI_LOGO_LINES      → 6 raw figlet lines (parallel to CCWS_TUI_LOGO_COLORS)
+#   CCWS_TUI_LOGO_COLORS     → 6 truecolor ANSI escapes for the gradient
 #   _ccws_fzf_min_version    → return 0 if fzf ≥ 0.44 (required by ccws_tui_fzf_pick flags)
 
 # shellcheck disable=SC1091
@@ -54,6 +57,31 @@ export CCWS_PREVIEW_KEYS
 # both surfaces follow.
 CCWS_TUI_RULE='────────────────────────────────'
 export CCWS_TUI_RULE
+
+# ASCII logo printed above the picker. Two parallel arrays: per-row truecolor
+# ANSI + bold escapes, and the 6 raw lines of the figlet (ANSI Shadow font of
+# "ccws"). Both have exactly 6 elements; ccws_tui_logo's render loop trusts
+# that contract. To recolor or restyle the logo, edit these arrays only — the
+# loop body and the gates never need to change.
+CCWS_TUI_LOGO_COLORS=(
+    $'\033[38;2;203;166;247;1m'   # mauve   #cba6f7
+    $'\033[38;2;245;194;231;1m'   # pink    #f5c2e7
+    $'\033[38;2;180;190;254;1m'   # lavender #b4befe
+    $'\033[38;2;137;220;235;1m'   # sky     #89dceb
+    $'\033[38;2;166;227;161;1m'   # green   #a6e3a1
+    $'\033[38;2;249;226;175;1m'   # yellow  #f9e2af
+)
+export CCWS_TUI_LOGO_COLORS
+
+CCWS_TUI_LOGO_LINES=(
+    ' ██████╗ ██████╗██╗    ██╗███████╗'
+    '██╔════╝██╔════╝██║    ██║██╔════╝'
+    '██║     ██║     ██║ █╗ ██║███████╗'
+    '██║     ██║     ██║███╗██║╚════██║'
+    '╚██████╗╚██████╗╚███╔███╔╝███████║'
+    ' ╚═════╝ ╚═════╝ ╚══╝╚══╝ ╚══════╝'
+)
+export CCWS_TUI_LOGO_LINES
 
 # Normalize an endpoint URL to a short, fixed-shape label for the picker list.
 # Examples:
@@ -141,6 +169,34 @@ _ccws_tui_lines() {
         fi
     fi
     printf '%s\n' 24
+}
+
+# Print the 6-line ANSI Shadow ASCII logo to stderr, or return silently if
+# any gate fails. Gates (short-circuit, cheapest first):
+#   1. CCWS_NO_LOGO=1            — user opt-out
+#   2. stderr is not a tty       — redirected / CI / non-interactive
+#   3. COLUMNS < 36              — logo is 34 cols wide, no point cramming
+#   4. LINES < 24                — would squeeze the picker off-screen
+#
+# CCWS_TUI_LOGO_FORCE=1 bypasses the tty check ONLY, for bats coverage of
+# the size gates. Not documented for end users.
+ccws_tui_logo() {
+    [[ "${CCWS_NO_LOGO:-0}" == "1" ]] && return 0
+    if [[ "${CCWS_TUI_LOGO_FORCE:-0}" != "1" ]] && [[ ! -t 2 ]]; then
+        return 0
+    fi
+    local cols lines
+    cols=$(_ccws_tui_cols)
+    lines=$(_ccws_tui_lines)
+    [[ "$cols"  -lt 36 ]] && return 0
+    [[ "$lines" -lt 24 ]] && return 0
+
+    local rs=$'\033[0m' i
+    printf '\n' >&2
+    for i in 0 1 2 3 4 5; do
+        printf '%s%s%s\n' "${CCWS_TUI_LOGO_COLORS[i]}" "${CCWS_TUI_LOGO_LINES[i]}" "$rs" >&2
+    done
+    printf '\n' >&2
 }
 
 # Returns 0 (success) when fzf reports ≥ 0.44. The picker uses --height=~N,

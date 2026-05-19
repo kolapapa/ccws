@@ -337,3 +337,69 @@ SHIM
     [[ "$output" == *"deleted-workspace"* ]]
     [[ "$output" == *"set but workspace not found"* ]]
 }
+
+@test "ccws_tui_logo respects CCWS_NO_LOGO=1" {
+    # Highest-priority gate. Set every other gate to "would render" to prove
+    # CCWS_NO_LOGO=1 alone suppresses output.
+    export CCWS_NO_LOGO=1
+    export CCWS_TUI_LOGO_FORCE=1
+    export COLUMNS=80
+    export LINES=40
+    run ccws_tui_logo
+    [[ "$status" -eq 0 ]]
+    [[ -z "$output" ]]
+}
+
+@test "ccws_tui_logo skips when stderr is not a tty" {
+    # bats stderr is a pipe by default. Without CCWS_TUI_LOGO_FORCE, the
+    # [[ -t 2 ]] gate must short-circuit.
+    unset CCWS_NO_LOGO
+    unset CCWS_TUI_LOGO_FORCE
+    export COLUMNS=80
+    export LINES=40
+    run ccws_tui_logo
+    [[ "$status" -eq 0 ]]
+    [[ -z "$output" ]]
+}
+
+@test "ccws_tui_logo skips when COLUMNS<36" {
+    unset CCWS_NO_LOGO
+    export CCWS_TUI_LOGO_FORCE=1
+    export COLUMNS=30
+    export LINES=40
+    run ccws_tui_logo
+    [[ "$status" -eq 0 ]]
+    [[ -z "$output" ]]
+}
+
+@test "ccws_tui_logo skips when LINES<24" {
+    unset CCWS_NO_LOGO
+    export CCWS_TUI_LOGO_FORCE=1
+    export COLUMNS=80
+    export LINES=20
+    run ccws_tui_logo
+    [[ "$status" -eq 0 ]]
+    [[ -z "$output" ]]
+}
+
+@test "ccws_tui_logo renders 6 logo lines when gates pass" {
+    # Run under bash -c so we control the env precisely. Capture combined
+    # stdout+stderr because the logo writes to stderr.
+    run bash -c "
+        export CCWS_TUI_LOGO_FORCE=1
+        export COLUMNS=80
+        export LINES=40
+        unset CCWS_NO_LOGO
+        source '$CCWS_PROJECT_ROOT/lib/common.sh'
+        source '$CCWS_PROJECT_ROOT/lib/env.sh'
+        source '$CCWS_PROJECT_ROOT/lib/tui.sh'
+        ccws_tui_logo 2>&1
+    "
+    [[ "$status" -eq 0 ]]
+    # 6 logo lines surrounded by 1 blank line above and 1 below = 8 total.
+    # Count non-blank lines: each logo row has box-drawing + ANSI chars so
+    # is never blank; the framing newlines produce empty lines. Expect 6.
+    local count
+    count=$(printf '%s\n' "$output" | grep -cE '\S')
+    [[ "$count" -eq 6 ]]
+}
