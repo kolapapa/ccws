@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Pure-bash fallback TUI — numbered menu, Catppuccin Mocha colors.
 #
-# Used when fzf is not installed or CCWS_NO_TUI=1.
+# Used when fzf is not installed, fzf < 0.44, COLUMNS < 60, or CCWS_NO_TUI=1.
+# Mirrors the fzf picker's visual language: 32-char rule, ~8-col indent,
+# no opening/closing list rules, no in-row pointer marker. The numbered
+# prefix (1), 2)...) stays since that's how the user inputs the selection.
+# See DESIGN.md "Surface registry" for the cross-engine alignment rules.
 
 ccws_tui_fallback_pick() {
     local lines=()
@@ -18,12 +22,16 @@ ccws_tui_fallback_pick() {
     local pink=$'\033[38;2;245;194;231m'
     local sky=$'\033[38;2;137;220;235m'
     local green=$'\033[38;2;166;227;161m'
+    local green_bold=$'\033[38;2;166;227;161;1m'
     local yellow=$'\033[38;2;249;226;175m'
     local dim=$'\033[38;2;108;112;134m'
     local rs=$'\033[0m'
 
-    printf '\n  %sccws%s %s·%s %sworkspaces%s\n' "$mauve_b" "$rs" "$dim" "$rs" "$pink" "$rs" >&2
-    printf '  %s─────────────────────────────────────────────────────────%s\n' "$dim" "$rs" >&2
+    # Title + 32-char rule, same vocabulary as the fzf picker. ~8 cols of
+    # indent via leading spaces (fallback can't use fzf's --margin).
+    local indent="        "
+    printf '\n%s%sccws · workspaces%s\n' "$indent" "$mauve_b" "$rs" >&2
+    printf '%s%s────────────────────────────────%s\n\n' "$indent" "$dim" "$rs" >&2
 
     local i=1
     local names=()
@@ -35,14 +43,13 @@ ccws_tui_fallback_pick() {
         p=$(echo "$p" | xargs)
         names+=("$n")
 
-        # Marker + name color (compute visible padding separately so ANSI escapes
-        # don't break printf width).
-        local marker name_color
+        # Name color signals active state. No in-row marker — the numbered
+        # prefix is the only column-0 glyph.
+        local name_color active_suffix=""
         if [[ "${CCWS_NAME:-}" == "$n" ]]; then
-            marker="${green}▸${rs}"
-            name_color="$green"
+            name_color="$green_bold"
+            active_suffix="  ${dim}· active${rs}"
         else
-            marker="${dim}▹${rs}"
             name_color="$pink"
         fi
         local name_pad=""
@@ -50,21 +57,24 @@ ccws_tui_fallback_pick() {
             printf -v name_pad '%*s' $((14 - ${#n})) ""
         fi
 
-        # Endpoint: normalized short label + truncated to column + colored by family
+        # Endpoint: normalized short label + truncated + colored by family.
+        # Must be if/elif (not case) for bash 3.2 compat inside subshell contexts.
         local e_short
         e_short=$(ccws_tui_short_endpoint "$e")
         local ep_w=24
         e_short=$(ccws_tui_truncate "$e_short" "$ep_w")
         local ep_color
-        case "$e_short" in
-            anthropic)                  ep_color="$sky" ;;
-            deepseek-gw|openai-gw|*-gw) ep_color="$yellow" ;;
-            *)                          ep_color="$pink" ;;
-        esac
+        if [[ "$e_short" == "anthropic" ]]; then
+            ep_color="$sky"
+        elif [[ "$e_short" == *-gw ]]; then
+            ep_color="$yellow"
+        else
+            ep_color="$pink"
+        fi
         local ep_pad=""
         [[ ${#e_short} -lt $ep_w ]] && printf -v ep_pad '%*s' $((ep_w - ${#e_short})) ""
 
-        # Proxy mark
+        # Proxy badge (glyph + color, redundant for colorblind users).
         local proxy_disp
         if [[ "$p" == "on" ]]; then
             proxy_disp="${green}● proxy${rs}"
@@ -72,15 +82,21 @@ ccws_tui_fallback_pick() {
             proxy_disp="${dim}○ direct${rs}"
         fi
 
-        printf '  %s %s%d)%s %s%s%s%s  %s%s%s%s  %s\n' \
-            "$marker" "$dim" "$i" "$rs" \
+        printf '%s%s%d)%s %s%s%s%s  %s%s%s%s  %s%s\n' \
+            "$indent" "$dim" "$i" "$rs" \
             "$name_color" "$n" "$rs" "$name_pad" \
             "$ep_color" "$e_short" "$rs" "$ep_pad" \
-            "$proxy_disp" >&2
+            "$proxy_disp" "$active_suffix" >&2
         i=$((i + 1))
     done
-    printf '  %s─────────────────────────────────────────────────────────%s\n' "$dim" "$rs" >&2
-    printf '  %s%s↑↓%s number · %sq%s quit%s : ' "$dim" "$sky" "$rs$dim" "$sky" "$rs$dim" "$rs" >&2
+    printf '\n' >&2
+
+    # Footer: same vocabulary as fzf picker. Numbered input + q to quit
+    # (fallback doesn't have fzf's typing/arrow keys). Ghost hint appended
+    # via shared helper.
+    local ghost
+    ghost=$(ccws_tui_ghost_hint)
+    printf '%s%snumber to select    q to quit%s%s : ' "$indent" "$dim" "$rs" "$ghost" >&2
 
     local choice
     IFS= read -r choice
