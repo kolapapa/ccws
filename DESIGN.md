@@ -61,6 +61,35 @@ terminals (escapes are stripped or ignored).
    Otherwise `ccws add --proxy` writes both upper/lower-case vars and the
    preview shows two identical rows.
 
+## Logo
+
+The interactive picker (both fzf and fallback engines) opens with a 6-line
+ANSI Shadow ASCII rendering of "ccws", written to stderr above the picker
+by the shared helper `ccws_tui_logo` in `lib/tui.sh`. The logo replaces
+the picker's title row — the rule + help row stay, but there is no
+`ccws · workspaces` text any more.
+
+**Color:** per-row Catppuccin Mocha gradient, top to bottom:
+mauve `#cba6f7` → pink `#f5c2e7` → lavender `#b4befe` → sky `#89dceb`
+→ green `#a6e3a1` → yellow `#f9e2af`. All rows are bold.
+
+**Gates (any one suppresses the logo silently):**
+
+| Gate | Trigger | Why |
+|------|---------|-----|
+| `CCWS_NO_LOGO=1` | User opt-out | Some users prefer the picker without branding |
+| stderr is not a tty | Redirected, piped, CI | Logo bytes would corrupt machine-readable output |
+| `COLUMNS < 36` | Narrow terminal | Logo is 34 cols wide; cramming it line-wraps to nonsense |
+| `LINES < 24` | Short terminal | Picker (`--min-height=18`) plus logo would scroll off-screen |
+
+The render lives in scrollback because fzf's alternate-screen mode does
+not erase the main buffer. After Esc, the logo remains visible above the
+prompt.
+
+The ceremonial banner (`ccws_tui_banner` in `lib/tui_gum.sh`, used by
+`ccws init`) is a separate surface and does NOT call `ccws_tui_logo` —
+see the Surface Registry below.
+
 ## Preview
 
 The preview iterates `CCWS_PREVIEW_KEYS` in `lib/tui.sh` — an ordered
@@ -78,11 +107,11 @@ parse failure). Distinguishes "ccws bug" from "user env file broken."
 ccws has three rendering surfaces. Each owns its own visual register; they
 are intentionally NOT uniform.
 
-| Surface | Register | Frame | Why |
-|---------|----------|-------|-----|
-| `ccws_tui_fzf_pick` (`lib/tui_fzf.sh`) | Operational | None | High-frequency daily use. Restraint earns its place by getting out of the way. |
-| `ccws_tui_fallback_pick` (`lib/tui_fallback.sh`) | Operational | None | Mirror of the fzf register for narrow terminals / no-fzf / `CCWS_NO_TUI=1`. |
-| `ccws_tui_banner` (`lib/tui_gum.sh`) | Ceremonial | Double border (gum) | One-time first-run welcome via `ccws init`. Attention budget is high, the moment carries weight, a bordered banner earns its presence. |
+| Surface | Register | Frame | Logo | Why |
+|---------|----------|-------|------|-----|
+| `ccws_tui_fzf_pick` (`lib/tui_fzf.sh`) | Operational | None | ASCII logo above (via `ccws_tui_logo`) | High-frequency daily use. Restraint earns its place by getting out of the way. |
+| `ccws_tui_fallback_pick` (`lib/tui_fallback.sh`) | Operational | None | ASCII logo above (via `ccws_tui_logo`) | Mirror of the fzf register for narrow terminals / no-fzf / `CCWS_NO_TUI=1`. |
+| `ccws_tui_banner` (`lib/tui_gum.sh`) | Ceremonial | Double border (gum) | No (the gum banner IS the brand mark) | One-time first-run welcome via `ccws init`. Attention budget is high, the moment carries weight, a bordered banner earns its presence. |
 
 The same project can carry both registers if each surface owns its
 register. Do NOT "normalize" the banner away to match the picker — the
