@@ -55,4 +55,5 @@ describe('Row', () => {
     const { lastFrame } = render(<Row workspace={{ ...baseWs, active: true }} isCursor={false} />);
     expect(lastFrame()).toContain('· active');
   });
+
 });

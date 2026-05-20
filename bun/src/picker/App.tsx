@@ -17,6 +17,18 @@ export interface AppProps {
   onExit: (selectedName: string | null, exitCode: number) => void;
 }
 
+interface KeyHintProps {
+  k: string;
+  label: string;
+  color?: string;
+}
+const KeyHint: React.FC<KeyHintProps> = ({ k, label, color }) => (
+  <>
+    <Text color={color ?? COLORS.mauve} bold>{k}</Text>
+    <Text color={COLORS.dim}> {label}</Text>
+  </>
+);
+
 export const App: React.FC<AppProps> = ({ workspacesDir, activeName, logoGate, onExit }) => {
   const [state, dispatch] = useReducer(reducer, undefined, () =>
     initialState(scanWorkspaces({ workspacesDir, activeName }), activeName),
@@ -60,9 +72,17 @@ export const App: React.FC<AppProps> = ({ workspacesDir, activeName, logoGate, o
     <Box flexDirection="column">
       <Logo gate={logoGate} />
       <Text color={COLORS.dim}>{RULE}</Text>
-      <Text color={COLORS.dim}>
-        {'↑↓ navigate    type to filter    ↵ activate    Tab toggle yolo    esc cancel'}
-      </Text>
+      <Box>
+        <KeyHint k="↑↓" label="navigate" />
+        <Text color={COLORS.dim}>    </Text>
+        <KeyHint k="type" label="to filter" color={COLORS.lavender} />
+        <Text color={COLORS.dim}>    </Text>
+        <KeyHint k="↵" label="activate" color={COLORS.green} />
+        <Text color={COLORS.dim}>    </Text>
+        <KeyHint k="Tab" label="toggle yolo" color={COLORS.yellow} />
+        <Text color={COLORS.dim}>    </Text>
+        <KeyHint k="esc" label="cancel" color={COLORS.red} />
+      </Box>
       <Box>{/* spacer */}</Box>
       <Search
         query={state.query}

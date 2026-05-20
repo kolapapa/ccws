@@ -33,30 +33,40 @@ export interface RowProps {
 export const Row: React.FC<RowProps> = ({ workspace, isCursor }) => {
   const ep = truncate(endpointShort(workspace.endpoint), EP_W);
   const name = truncate(workspace.name, NAME_W);
+  // Selected row gets full-line inverse highlight (fzf-style), so the cursor
+  // is unmistakable even at a glance. The ❯ pointer stays as a redundant cue
+  // for colorblind users / monochrome terminals.
+  const inv = isCursor;
   return (
     <Box>
-      <Text color={COLORS.green} bold>
+      <Text color={isCursor ? COLORS.green : undefined} bold inverse={inv}>
         {isCursor ? '❯ ' : '  '}
       </Text>
-      <Text color={workspace.active ? COLORS.green : COLORS.pink} bold={workspace.active}>
+      <Text
+        color={workspace.active ? COLORS.green : COLORS.pink}
+        bold={workspace.active || isCursor}
+        inverse={inv}
+      >
         {name}
       </Text>
-      <Text>  </Text>
-      <Text color={endpointColor(endpointShort(workspace.endpoint))}>{ep}</Text>
-      <Text>  </Text>
+      <Text inverse={inv}>  </Text>
+      <Text color={endpointColor(endpointShort(workspace.endpoint))} inverse={inv}>
+        {ep}
+      </Text>
+      <Text inverse={inv}>  </Text>
       {workspace.proxy ? (
-        <Text color={COLORS.green}>● proxy </Text>
+        <Text color={COLORS.green} inverse={inv}>● proxy </Text>
       ) : (
-        <Text color={COLORS.dim}>○ direct</Text>
+        <Text color={COLORS.dim} inverse={inv}>○ direct</Text>
       )}
-      <Text>  </Text>
+      <Text inverse={inv}>  </Text>
       {workspace.dangerous ? (
-        <Text color={COLORS.red}>⚡ yolo </Text>
+        <Text color={COLORS.red} inverse={inv}>⚡ yolo </Text>
       ) : (
-        <Text color={COLORS.dim}>· safe </Text>
+        <Text color={COLORS.dim} inverse={inv}>· safe </Text>
       )}
       {workspace.active && (
-        <Text color={COLORS.dim}>  · active</Text>
+        <Text color={COLORS.dim} inverse={inv}>  · active</Text>
       )}
     </Box>
   );
