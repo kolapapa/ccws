@@ -82,13 +82,12 @@ Then run `ccws init`.
 If you've cloned the repo and want to use the source tree:
 
 ```bash
-cd bun
 bun install
 bun run build:host
 ln -sfn "$(pwd)/dist/ccws-host" "$HOME/.local/bin/ccws"
 ```
 
-This lets you edit `bun/src/**` and re-run `bun run build:host` to test changes locally.
+This lets you edit `src/**` and re-run `bun run build:host` to test changes locally.
 
 ### Why `--with-claude-wrapper`?
 

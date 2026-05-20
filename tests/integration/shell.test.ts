@@ -13,8 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const REPO = join(__dirname, '../../..');
-const BIN = join(REPO, 'bun/dist/ccws-host');
+const BIN = join(__dirname, '../../dist/ccws-host');
 
 async function bash(
   script: string,

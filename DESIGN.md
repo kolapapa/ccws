@@ -122,17 +122,9 @@ contrast is intentional, not a bug.
 Starting with v0.7.0 ccws is rewriting itself in TypeScript on the Bun
 runtime, in five phases:
 
-1. v0.7.0 — TUI picker becomes a compiled binary (`~/.ccws/bin/ccws-picker`).
-   `lib/tui.sh` prefers it when present, falls back to fzf otherwise.
-2. v0.8.0 — `ccws use` / `ccws unset` / `ccws list` / `ccws current` move to TS.
-3. v0.9.0 — `ccws add` / `ccws rm` / `ccws sync` move to TS.
-4. v0.10.0 — `ccws init` / `ccws doctor` / `ccws which` / `ccws local` /
-   `ccws global` / `ccws hook` move to TS.
-5. v1.0.0 — bash code deleted; `bun/dist/ccws` is canonical.
-
-The TS implementation lives in `bun/`. See
-`docs/superpowers/specs/2026-05-20-ccws-bun-rewrite-design.md` for the
-full design rationale and per-phase scope.
+v1.0.0 shipped the full rewrite in a single cutover: bash code removed,
+TypeScript + Bun + Ink binary is canonical. The TS source lives at the
+repo root (`src/`, `tests/`, `build.ts`, `package.json`, etc).
 
 Why Bun + Ink:
 - Bun's `bun build --compile` produces a single binary per platform

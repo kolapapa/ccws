@@ -14,3 +14,7 @@ tests/tmp/
 
 # internal design docs (not for public repo)
 docs/
+
+# build artifacts
+dist/
+node_modules/

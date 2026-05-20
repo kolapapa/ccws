@@ -30,7 +30,7 @@ Usage: ./install.sh [--no-shell-rc] [--with-claude-wrapper] [--version vX.Y.Z]
 
 Developer mode: --from-source is no longer supported (v1.0 removed bash).
 Build from source with:
-    cd bun && bun install && bun run build:host
+    bun install && bun run build:host
     ln -sfn "\$(pwd)/dist/ccws-host" "\$HOME/.local/bin/ccws"
 
 After install, run:  ccws init
@@ -62,7 +62,7 @@ mkdir -p "$INSTALL_BIN"
 if [[ "$from_source" -eq 1 ]]; then
     echo "error: --from-source is no longer supported (bash entry point removed in v1.0)" >&2
     echo "Build from source instead:" >&2
-    echo "  cd bun && bun install && bun run build:host" >&2
+    echo "  bun install && bun run build:host" >&2
     echo "  ln -sfn \$(pwd)/dist/ccws-host \$HOME/.local/bin/ccws" >&2
     exit 2
 fi
