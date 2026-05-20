@@ -234,6 +234,16 @@ ccws_tui_fzf_pick() {
     # - --color="scrollbar:-1": forces the scrollbar transparent. fzf draws
     #   an inactive scrollbar even when the list fits the viewport; on dark
     #   themes it reads as a stray vertical line on each list row.
+    # - --gutter=' ': fzf 0.70 defaults gutter to '▌' which renders as a
+    #   solid strip down the list-left edge. A space character makes the
+    #   gutter column invisible while preserving the layout.
+    # - --header-first: place the header (logo + rule + help) ABOVE the
+    #   prompt line. Default puts header between prompt and list, which
+    #   tucks the brand mark below the input — wrong feel for an opening
+    #   surface.
+    # - --info=inline-right: collapse the "N/M" counter into the prompt
+    #   line's right edge. Default puts it on its own row above the list,
+    #   which adds a visually noisy line between prompt and content.
     # - --preview-window 'down,55%': fixed proportion of available height,
     #   no auto-fit-with-cap. Earlier `~20` was wrong because wrapped long
     #   values (e.g. https://api.deepseek.com/anthropic in a narrow column)
@@ -254,6 +264,8 @@ ccws_tui_fzf_pick() {
             --border=none \
             --gutter=' ' \
             --header="$header_line" \
+            --header-first \
+            --info=inline-right \
             --prompt="› " \
             --pointer="❯" \
             ${start_bind[@]+"${start_bind[@]}"} \
