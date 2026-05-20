@@ -3,7 +3,7 @@ import { logInfo, logWarn, logError, logOk } from '../src/logger.js';
 
 describe('logger', () => {
   let writes: string[];
-  let spy: ReturnType<typeof vi.spyOn>;
+  let spy: { mockRestore: () => void };
 
   beforeEach(() => {
     writes = [];

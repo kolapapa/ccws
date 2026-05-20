@@ -222,7 +222,7 @@ import { logInfo, logWarn, logError, logOk } from '../src/logger.js';
 
 describe('logger', () => {
   let writes: string[];
-  let spy: ReturnType<typeof vi.spyOn>;
+  let spy: { mockRestore: () => void };
 
   beforeEach(() => {
     writes = [];
@@ -1008,7 +1008,7 @@ import { promptLine, promptHidden, promptYn, _setReader } from '../src/prompt.js
 
 describe('prompt', () => {
   let writes: string[];
-  let spy: ReturnType<typeof vi.spyOn>;
+  let spy: { mockRestore: () => void };
 
   beforeEach(() => {
     writes = [];
@@ -1166,8 +1166,8 @@ import { VERSION } from '../src/version.js';
 describe('cli.dispatch', () => {
   let stdoutWrites: string[];
   let stderrWrites: string[];
-  let outSpy: ReturnType<typeof vi.spyOn>;
-  let errSpy: ReturnType<typeof vi.spyOn>;
+  let outSpy: { mockRestore: () => void };
+  let errSpy: { mockRestore: () => void };
 
   beforeEach(() => {
     stdoutWrites = [];
@@ -1414,8 +1414,8 @@ describe('runUse', () => {
   const origEnv = { ...process.env };
   let stdoutWrites: string[];
   let stderrWrites: string[];
-  let outSpy: ReturnType<typeof vi.spyOn>;
-  let errSpy: ReturnType<typeof vi.spyOn>;
+  let outSpy: { mockRestore: () => void };
+  let errSpy: { mockRestore: () => void };
 
   beforeEach(() => {
     tmp = mkdtempSync(join(tmpdir(), 'ccws-use-'));
@@ -1671,7 +1671,7 @@ import { runUnset } from '../../src/commands/unset.js';
 describe('runUnset', () => {
   const origEnv = { ...process.env };
   let stdoutWrites: string[];
-  let outSpy: ReturnType<typeof vi.spyOn>;
+  let outSpy: { mockRestore: () => void };
 
   beforeEach(() => {
     process.env = { ...origEnv };
@@ -1818,8 +1818,8 @@ describe('runList', () => {
   const origEnv = { ...process.env };
   let stdoutWrites: string[];
   let stderrWrites: string[];
-  let outSpy: ReturnType<typeof vi.spyOn>;
-  let errSpy: ReturnType<typeof vi.spyOn>;
+  let outSpy: { mockRestore: () => void };
+  let errSpy: { mockRestore: () => void };
 
   beforeEach(() => {
     tmp = mkdtempSync(join(tmpdir(), 'ccws-list-'));
@@ -1964,7 +1964,7 @@ import { runCurrent } from '../../src/commands/current.js';
 describe('runCurrent', () => {
   const origEnv = { ...process.env };
   let stdoutWrites: string[];
-  let outSpy: ReturnType<typeof vi.spyOn>;
+  let outSpy: { mockRestore: () => void };
   beforeEach(() => {
     process.env = { ...origEnv };
     stdoutWrites = [];
@@ -2089,8 +2089,8 @@ describe('runWhich', () => {
   const origEnv = { ...process.env };
   let origCwd: string;
   let outs: string[]; let errs: string[];
-  let outSpy: ReturnType<typeof vi.spyOn>;
-  let errSpy: ReturnType<typeof vi.spyOn>;
+  let outSpy: { mockRestore: () => void };
+  let errSpy: { mockRestore: () => void };
 
   beforeEach(() => {
     tmp = mkdtempSync(join(tmpdir(), 'ccws-which-'));
@@ -2234,8 +2234,8 @@ describe('runHook', () => {
   let tmp: string;
   const origEnv = { ...process.env };
   let outs: string[]; let errs: string[];
-  let outSpy: ReturnType<typeof vi.spyOn>;
-  let errSpy: ReturnType<typeof vi.spyOn>;
+  let outSpy: { mockRestore: () => void };
+  let errSpy: { mockRestore: () => void };
 
   beforeEach(() => {
     tmp = mkdtempSync(join(tmpdir(), 'ccws-hook-'));
@@ -2441,8 +2441,8 @@ describe('runLocal', () => {
   const origEnv = { ...process.env };
   let origCwd: string;
   let outs: string[]; let errs: string[];
-  let outSpy: ReturnType<typeof vi.spyOn>;
-  let errSpy: ReturnType<typeof vi.spyOn>;
+  let outSpy: { mockRestore: () => void };
+  let errSpy: { mockRestore: () => void };
 
   beforeEach(() => {
     tmp = mkdtempSync(join(tmpdir(), 'ccws-local-'));
@@ -2599,8 +2599,8 @@ describe('runGlobal', () => {
   let tmp: string;
   const origEnv = { ...process.env };
   let outs: string[]; let errs: string[];
-  let outSpy: ReturnType<typeof vi.spyOn>;
-  let errSpy: ReturnType<typeof vi.spyOn>;
+  let outSpy: { mockRestore: () => void };
+  let errSpy: { mockRestore: () => void };
 
   beforeEach(() => {
     tmp = mkdtempSync(join(tmpdir(), 'ccws-global-'));
@@ -2892,7 +2892,7 @@ describe('runRm', () => {
   let tmp: string;
   const origEnv = { ...process.env };
   let errs: string[];
-  let errSpy: ReturnType<typeof vi.spyOn>;
+  let errSpy: { mockRestore: () => void };
   beforeEach(() => {
     tmp = mkdtempSync(join(tmpdir(), 'ccws-rm-'));
     process.env = { ...origEnv };
@@ -3033,7 +3033,7 @@ describe('runSync', () => {
   let tmp: string;
   const origEnv = { ...process.env };
   let errs: string[];
-  let errSpy: ReturnType<typeof vi.spyOn>;
+  let errSpy: { mockRestore: () => void };
 
   beforeEach(() => {
     tmp = mkdtempSync(join(tmpdir(), 'ccws-sync-'));
@@ -3171,7 +3171,7 @@ describe('runAdd', () => {
   let tmp: string;
   const origEnv = { ...process.env };
   let errs: string[];
-  let errSpy: ReturnType<typeof vi.spyOn>;
+  let errSpy: { mockRestore: () => void };
   beforeEach(() => {
     tmp = mkdtempSync(join(tmpdir(), 'ccws-add-'));
     process.env = { ...origEnv };
@@ -3410,7 +3410,7 @@ describe('runDoctor', () => {
   let tmp: string;
   const origEnv = { ...process.env };
   let outs: string[];
-  let outSpy: ReturnType<typeof vi.spyOn>;
+  let outSpy: { mockRestore: () => void };
   beforeEach(() => {
     tmp = mkdtempSync(join(tmpdir(), 'ccws-doctor-'));
     process.env = { ...origEnv };
@@ -3644,7 +3644,7 @@ describe('runInit', () => {
   let tmp: string;
   const origEnv = { ...process.env };
   let errs: string[];
-  let errSpy: ReturnType<typeof vi.spyOn>;
+  let errSpy: { mockRestore: () => void };
   beforeEach(() => {
     tmp = mkdtempSync(join(tmpdir(), 'ccws-init-'));
     process.env = { ...origEnv };
