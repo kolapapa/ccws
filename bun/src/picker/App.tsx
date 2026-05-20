@@ -1,5 +1,5 @@
-import React, { useReducer, useLayoutEffect, useRef } from 'react';
-import { Box, Text, useStdin } from 'ink';
+import React, { useReducer } from 'react';
+import { Box, Text, useInput } from 'ink';
 import { Logo } from './Logo.js';
 import { List } from './List.js';
 import { Preview } from './Preview.js';
@@ -22,84 +22,39 @@ export const App: React.FC<AppProps> = ({ workspacesDir, activeName, logoGate, o
     initialState(scanWorkspaces({ workspacesDir, activeName }), activeName),
   );
 
-  const { stdin } = useStdin();
-
-  // Use refs to keep the handler stable while reading current state
-  const stateRef = useRef(state);
-  stateRef.current = state;
-  const onExitRef = useRef(onExit);
-  onExitRef.current = onExit;
-  const workspacesDirRef = useRef(workspacesDir);
-  workspacesDirRef.current = workspacesDir;
-  const activeNameRef = useRef(activeName);
-  activeNameRef.current = activeName;
-
-  // useLayoutEffect runs synchronously during commit, so the listener is
-  // registered before render() returns — this makes synchronous test writes work.
-  useLayoutEffect(() => {
-    const handleData = (data: string | Buffer) => {
-      const s = String(data);
-      const st = stateRef.current;
-      const list = filtered(st.workspaces, st.query);
-      const cursor = list.find((w) => w.name === st.cursorName) ?? null;
-
-      if (s === '\x1b') {
-        // Escape
-        onExitRef.current(null, 130);
-        return;
-      }
-      if (s === '\r' || s === '\n') {
-        // Enter / Return
-        onExitRef.current(st.cursorName, 0);
-        return;
-      }
-      if (s === '\x1b[A') {
-        // Up arrow
-        dispatch({ type: 'moveCursor', dir: 'up' });
-        return;
-      }
-      if (s === '\x1b[B') {
-        // Down arrow
-        dispatch({ type: 'moveCursor', dir: 'down' });
-        return;
-      }
-      if (s === '\t') {
-        // Tab — toggle CCWS_DANGEROUS
-        if (cursor) {
-          if (cursor.dangerous) {
-            unsetEnvKey(cursor.envPath, 'CCWS_DANGEROUS');
-          } else {
-            setEnvKey(cursor.envPath, 'CCWS_DANGEROUS', '1');
-          }
-          const fresh = scanWorkspaces({
-            workspacesDir: workspacesDirRef.current,
-            activeName: activeNameRef.current,
-          });
-          dispatch({ type: 'refreshWorkspaces', workspaces: fresh });
-        }
-        return;
-      }
-      // Ignore other escape sequences (e.g., \x1b[C, \x1b[D, etc.)
-      if (s.startsWith('\x1b')) {
-        return;
-      }
-      // Ignore control characters (except those already handled)
-      if (s.charCodeAt(0) < 32) {
-        return;
-      }
-      // Text character(s) — append to search query
-      const newQuery = st.query + s;
-      dispatch({ type: 'setQuery', value: newQuery });
-    };
-
-    stdin.on('data', handleData);
-    return () => {
-      stdin.off('data', handleData);
-    };
-  }, [stdin]);
-
   const list = filtered(state.workspaces, state.query);
   const cursor = list.find((w) => w.name === state.cursorName) ?? null;
+
+  useInput((input, key) => {
+    if (key.escape) {
+      onExit(null, 130);
+      return;
+    }
+    if (key.return) {
+      onExit(state.cursorName, 0);
+      return;
+    }
+    if (key.upArrow) {
+      dispatch({ type: 'moveCursor', dir: 'up' });
+      return;
+    }
+    if (key.downArrow) {
+      dispatch({ type: 'moveCursor', dir: 'down' });
+      return;
+    }
+    if (key.tab) {
+      if (cursor) {
+        if (cursor.dangerous) {
+          unsetEnvKey(cursor.envPath, 'CCWS_DANGEROUS');
+        } else {
+          setEnvKey(cursor.envPath, 'CCWS_DANGEROUS', '1');
+        }
+        const fresh = scanWorkspaces({ workspacesDir, activeName });
+        dispatch({ type: 'refreshWorkspaces', workspaces: fresh });
+      }
+      return;
+    }
+  });
 
   return (
     <Box flexDirection="column">

@@ -26,6 +26,20 @@ function pass() {
   };
 }
 
+// useInput registers its event listener in a React passive effect (useEffect).
+// The ink scheduler uses setImmediate, so we need one tick BEFORE writing to stdin
+// (to let the readable listener register) and one tick AFTER (to let the state update
+// propagate through batchedUpdates and trigger a re-render).
+const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+// Write a key to stdin and flush: pre-tick ensures the listener is registered,
+// post-tick ensures the dispatch + re-render have completed.
+const writeKey = async (stdin: { write: (s: string) => void }, s: string) => {
+  await tick();
+  stdin.write(s);
+  await tick();
+};
+
 describe('App', () => {
   it('renders all 3 workspaces on initial mount', () => {
     const { lastFrame } = render(<App workspacesDir={tmp} activeName={null} logoGate={pass()} onExit={() => {}} />);
@@ -49,27 +63,27 @@ describe('App', () => {
     expect(cursorLine).toContain('deepseek');
   });
 
-  it('arrow down moves cursor to next workspace', () => {
+  it('arrow down moves cursor to next workspace', async () => {
     const { lastFrame, stdin } = render(<App workspacesDir={tmp} activeName={null} logoGate={pass()} onExit={() => {}} />);
-    stdin.write('\x1b[B');  // ↓
+    await writeKey(stdin, '\x1b[B');  // ↓
     const lines = (lastFrame() ?? '').split('\n');
     const cursorLine = lines.find((l) => l.includes('❯'));
     expect(cursorLine).toContain('deepseek');
   });
 
-  it('typing into search filters the list', () => {
+  it('typing into search filters the list', async () => {
     const { lastFrame, stdin } = render(<App workspacesDir={tmp} activeName={null} logoGate={pass()} onExit={() => {}} />);
-    stdin.write('grad');
+    await writeKey(stdin, 'grad');
     const frame = lastFrame() ?? '';
     expect(frame).toContain('gradient');
     expect(frame).not.toContain('astratech');
     expect(frame).not.toContain('deepseek');
   });
 
-  it('Tab toggles CCWS_DANGEROUS on the current row, preserving cursor', () => {
+  it('Tab toggles CCWS_DANGEROUS on the current row, preserving cursor', async () => {
     const { lastFrame, stdin } = render(<App workspacesDir={tmp} activeName={null} logoGate={pass()} onExit={() => {}} />);
-    stdin.write('\x1b[B');  // ↓ to deepseek
-    stdin.write('\t');         // Tab
+    await writeKey(stdin, '\x1b[B');  // ↓ to deepseek
+    await writeKey(stdin, '\t');         // Tab
     const envText = readFileSync(join(tmp, 'deepseek', 'ccws.env'), 'utf8');
     expect(envText).toMatch(/^CCWS_DANGEROUS=1$/m);
     const lines = (lastFrame() ?? '').split('\n');
@@ -78,15 +92,15 @@ describe('App', () => {
     expect(lastFrame() ?? '').toContain('⚡ yolo');
   });
 
-  it('Tab again removes CCWS_DANGEROUS, switching back to safe', () => {
-    const { lastFrame, stdin } = render(<App workspacesDir={tmp} activeName={null} logoGate={pass()} onExit={() => {}} />);
-    stdin.write('\t');  // toggle astratech ON
-    stdin.write('\t');  // toggle astratech OFF
+  it('Tab again removes CCWS_DANGEROUS, switching back to safe', async () => {
+    const { stdin } = render(<App workspacesDir={tmp} activeName={null} logoGate={pass()} onExit={() => {}} />);
+    await writeKey(stdin, '\t');  // toggle astratech ON
+    await writeKey(stdin, '\t');  // toggle astratech OFF
     const envText = readFileSync(join(tmp, 'astratech', 'ccws.env'), 'utf8');
     expect(envText).not.toMatch(/CCWS_DANGEROUS=1/);
   });
 
-  it('Enter calls onExit with the cursor workspace name and exitCode 0', () => {
+  it('Enter calls onExit with the cursor workspace name and exitCode 0', async () => {
     let received: { name: string; exitCode: number } | null = null;
     const { stdin } = render(
       <App
@@ -96,12 +110,12 @@ describe('App', () => {
         onExit={(name, exitCode) => { received = { name: name ?? '', exitCode }; }}
       />,
     );
-    stdin.write('\x1b[B');  // ↓ to deepseek
-    stdin.write('\r');         // Enter
+    await writeKey(stdin, '\x1b[B');  // ↓ to deepseek
+    await writeKey(stdin, '\r');         // Enter
     expect(received).toEqual({ name: 'deepseek', exitCode: 0 });
   });
 
-  it('Esc calls onExit with null name and exitCode 130', () => {
+  it('Esc calls onExit with null name and exitCode 130', async () => {
     let received: { name: string | null; exitCode: number } | null = null;
     const { stdin } = render(
       <App
@@ -111,7 +125,7 @@ describe('App', () => {
         onExit={(name, exitCode) => { received = { name, exitCode }; }}
       />,
     );
-    stdin.write('\x1b');  // Esc
+    await writeKey(stdin, '\x1b');  // Esc
     expect(received).toEqual({ name: null, exitCode: 130 });
   });
 });
