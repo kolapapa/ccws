@@ -216,16 +216,6 @@ ccws_tui_fzf_pick() {
         start_bind=(--bind="start:pos($active_idx)")
     fi
 
-    # fzf 0.55+ default-renders list/input/header borders as a thin strip
-    # on the list-left edge. Suppress them when the running fzf knows the
-    # flags; older fzfs (0.44 — 0.54) never rendered the borders so the
-    # absence of these flags is fine for them.
-    local border_args=()
-    local _line
-    while IFS= read -r _line; do
-        [[ -n "$_line" ]] && border_args+=("$_line")
-    done < <(_ccws_fzf_border_args)
-
     # Force POSIX sh for fzf subshells (preview command). Project supports
     # fish (share/init.fish) and zsh users have 1-indexed arrays — both would
     # break a sh-style preview script if fzf inherited the user's $SHELL.
@@ -262,11 +252,11 @@ ccws_tui_fzf_pick() {
             --no-multi \
             --reverse \
             --border=none \
+            --gutter=' ' \
             --header="$header_line" \
             --prompt="› " \
             --pointer="❯" \
             ${start_bind[@]+"${start_bind[@]}"} \
-            ${border_args[@]+"${border_args[@]}"} \
             --bind='pgup:preview-up,pgdn:preview-down,alt-k:preview-up,alt-j:preview-down' \
             --preview="$preview_cmd" \
             --preview-window='down,55%,wrap,border-top' \

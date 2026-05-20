@@ -427,50 +427,6 @@ SHIM
     [[ "$non_empty" -eq 6 ]]
 }
 
-@test "_ccws_fzf_border_args emits flags only for fzf builds that know them" {
-    # Behavior contract: each `--*-border` flag is emitted iff the running
-    # fzf advertises it in --help. We verify by stubbing fzf with a fake
-    # --help that mentions a controlled subset.
-    local shim_dir="$BATS_TMPDIR/fzf-help-$$-$RANDOM"
-    mkdir -p "$shim_dir"
-    cat > "$shim_dir/fzf" <<'SHIM'
-#!/usr/bin/env bash
-if [[ "$1" == "--help" ]]; then
-    # Advertise list-border + header-border but NOT input-border.
-    printf '  --list-border\n  --header-border\n'
-    exit 0
-fi
-exit 0
-SHIM
-    chmod +x "$shim_dir/fzf"
-    PATH="$shim_dir:$PATH" run _ccws_fzf_border_args
-    [[ "$status" -eq 0 ]]
-    [[ "$output" == *"--list-border=none"* ]]
-    [[ "$output" == *"--header-border=none"* ]]
-    [[ "$output" != *"--input-border=none"* ]]
-    rm -rf "$shim_dir"
-}
-
-@test "_ccws_fzf_border_args emits nothing on fzf builds without border flags" {
-    # Pre-0.55 fzf does not know --list-border at all. Stub a help text
-    # that contains none of the flags; expect empty output.
-    local shim_dir="$BATS_TMPDIR/fzf-old-help-$$-$RANDOM"
-    mkdir -p "$shim_dir"
-    cat > "$shim_dir/fzf" <<'SHIM'
-#!/usr/bin/env bash
-if [[ "$1" == "--help" ]]; then
-    printf '  --height\n  --border\n  --reverse\n'
-    exit 0
-fi
-exit 0
-SHIM
-    chmod +x "$shim_dir/fzf"
-    PATH="$shim_dir:$PATH" run _ccws_fzf_border_args
-    [[ "$status" -eq 0 ]]
-    [[ -z "$output" ]]
-    rm -rf "$shim_dir"
-}
-
 @test "_ccws_tui_logo_lines returns empty when CCWS_NO_LOGO=1" {
     export CCWS_NO_LOGO=1
     export CCWS_TUI_LOGO_FORCE=1
