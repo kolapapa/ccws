@@ -1,0 +1,60 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - { triple: bun-darwin-arm64, suffix: darwin-arm64 }
+          - { triple: bun-darwin-x64,   suffix: darwin-x64 }
+          - { triple: bun-linux-arm64,  suffix: linux-arm64 }
+          - { triple: bun-linux-x64,    suffix: linux-x64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install deps
+        run: cd bun && bun install
+      - name: Cross-compile
+        run: |
+          cd bun
+          bun build --compile --target=${{ matrix.target.triple }} --minify \
+            src/index.ts --outfile dist/ccws-${{ matrix.target.suffix }}
+          cp dist/ccws-${{ matrix.target.suffix }} dist/ccws-picker-${{ matrix.target.suffix }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccws-${{ matrix.target.suffix }}
+          path: |
+            bun/dist/ccws-${{ matrix.target.suffix }}
+            bun/dist/ccws-picker-${{ matrix.target.suffix }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # required by softprops/action-gh-release to create the Release
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Compute checksums
+        run: |
+          cd artifacts
+          for d in ccws-*; do
+            (cd "$d" && sha256sum * >> ../SHA256SUMS)
+          done
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/ccws-*/*
+            artifacts/SHA256SUMS
+          generate_release_notes: true
