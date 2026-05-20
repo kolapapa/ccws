@@ -475,3 +475,72 @@ SHIM
     [[ "$status" -eq 0 ]]
     [[ -z "$output" ]]
 }
+
+@test "ccws_tui_run delegates to ~/.ccws/bin/ccws-picker when present" {
+    mkdir -p "$HOME/.ccws/bin"
+    cat > "$HOME/.ccws/bin/ccws-picker" <<'EOF'
+#!/usr/bin/env bash
+echo "work"
+exit 0
+EOF
+    chmod +x "$HOME/.ccws/bin/ccws-picker"
+    run ccws_tui_run
+    [[ "$status" -eq 0 ]]
+    [[ "$output" == "work" ]]
+    rm -f "$HOME/.ccws/bin/ccws-picker"
+}
+
+@test "ccws_tui_run honors binary exit code 130 (cancel)" {
+    mkdir -p "$HOME/.ccws/bin"
+    cat > "$HOME/.ccws/bin/ccws-picker" <<'EOF'
+#!/usr/bin/env bash
+exit 130
+EOF
+    chmod +x "$HOME/.ccws/bin/ccws-picker"
+    run ccws_tui_run
+    [[ "$status" -eq 130 ]]
+    [[ -z "$output" ]]
+    rm -f "$HOME/.ccws/bin/ccws-picker"
+}
+
+@test "ccws_tui_run falls back to bash engine when binary absent" {
+    rm -f "$HOME/.ccws/bin/ccws-picker"
+    # Verify ccws_tui_run reaches the bash engine without erroring on the
+    # missing binary. With CCWS_NO_TUI=1, the engine routes to fallback;
+    # fallback without stdin reads EOF and returns 1 — that's expected.
+    run bash -c "
+        export HOME='$HOME'
+        export CCWS_NO_TUI=1
+        source '$CCWS_PROJECT_ROOT/lib/common.sh'
+        source '$CCWS_PROJECT_ROOT/lib/env.sh'
+        source '$CCWS_PROJECT_ROOT/lib/tui.sh'
+        source '$CCWS_PROJECT_ROOT/lib/tui_fallback.sh'
+        ccws_tui_run </dev/null
+    "
+    # Exit non-zero is fine (no selection made). The point is no "command
+    # not found" / "No such file" errors from missing-binary handling.
+    [[ "$output" != *"command not found"* ]]
+    [[ "$output" != *"No such file"* ]]
+}
+
+@test "ccws_tui_run respects CCWS_USE_BASH_TUI=1 escape hatch" {
+    mkdir -p "$HOME/.ccws/bin"
+    cat > "$HOME/.ccws/bin/ccws-picker" <<'EOF'
+#!/usr/bin/env bash
+echo "FROM_BINARY"
+EOF
+    chmod +x "$HOME/.ccws/bin/ccws-picker"
+    # Escape hatch set → binary NOT invoked.
+    run bash -c "
+        export HOME='$HOME'
+        export CCWS_USE_BASH_TUI=1
+        export CCWS_NO_TUI=1
+        source '$CCWS_PROJECT_ROOT/lib/common.sh'
+        source '$CCWS_PROJECT_ROOT/lib/env.sh'
+        source '$CCWS_PROJECT_ROOT/lib/tui.sh'
+        source '$CCWS_PROJECT_ROOT/lib/tui_fallback.sh'
+        ccws_tui_run </dev/null
+    "
+    [[ "$output" != *"FROM_BINARY"* ]]
+    rm -f "$HOME/.ccws/bin/ccws-picker"
+}

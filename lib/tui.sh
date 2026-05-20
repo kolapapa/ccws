@@ -391,7 +391,19 @@ ccws_tui_format_rows() {
 }
 
 # Main entry point — returns selected workspace name on stdout, empty if cancelled.
+#
+# Prefers ~/.ccws/bin/ccws-picker (Phase 1 of the Bun rewrite) when
+# present; falls back to the bash fzf/fallback path otherwise. This
+# preserves backward compatibility — users who haven't installed the
+# binary keep the fzf picker; installers get the new TUI.
+#
+# CCWS_USE_BASH_TUI=1 forces the bash path (escape hatch for debugging).
 ccws_tui_run() {
+    local binary="$HOME/.ccws/bin/ccws-picker"
+    if [[ -x "$binary" ]] && [[ "${CCWS_USE_BASH_TUI:-0}" != "1" ]]; then
+        "$binary"
+        return $?
+    fi
     local engine
     engine=$(ccws_tui_engine)
     case "$engine" in
