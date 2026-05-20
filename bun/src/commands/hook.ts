@@ -1,28 +1,12 @@
-import { existsSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
 import { logError } from '../logger.js';
-import { shQuote } from '../shellQuote.js';
-
-function shareDir(): string {
-  if (process.env.CCWS_DIR && process.env.CCWS_DIR !== '') {
-    return join(process.env.CCWS_DIR, 'share');
-  }
-  let d = dirname(process.execPath);
-  for (let i = 0; i < 5; i++) {
-    const candidate = join(d, 'share');
-    if (existsSync(candidate)) return candidate;
-    const parent = dirname(d);
-    if (parent === d) break;
-    d = parent;
-  }
-  return resolve('share');
-}
+import { CLAUDE_WRAPPER, INIT_FISH, INIT_SH } from '../embedded.js';
 
 const USAGE = `Usage: ccws hook [--shell zsh|bash|fish] [--claude]
 
-Emit shell code to eval from your rc file.
+Emit shell code to eval from your rc file. The script is embedded in the
+binary; no share/ files on disk are needed.
 
-  --shell SHELL   Initialize the ccws shell function (use/unset/TUI).
+  --shell SHELL   Initialize the ccws shell function (use/unset/picker).
                   Add to ~/.zshrc / ~/.bashrc:
                       eval "$(ccws hook --shell zsh)"
                   For fish, add to ~/.config/fish/config.fish:
@@ -51,25 +35,18 @@ export async function runHook(argv: string[]): Promise<number> {
   if (showHelp) { process.stderr.write(USAGE); return 0; }
   if (shell === '' && !wantClaude) { process.stderr.write(USAGE); return 2; }
 
-  const share = shareDir();
   if (shell !== '') {
     if (shell === 'zsh' || shell === 'bash') {
-      const p = join(share, 'init.sh');
-      if (!existsSync(p)) { logError(`init.sh not found at ${p}`); return 1; }
-      process.stdout.write(`source ${shQuote(p)}\n`);
+      process.stdout.write(INIT_SH);
     } else if (shell === 'fish') {
-      const p = join(share, 'init.fish');
-      if (!existsSync(p)) { logError(`init.fish not found at ${p}`); return 1; }
-      process.stdout.write(`source ${p}\n`);
+      process.stdout.write(INIT_FISH);
     } else {
       logError(`unsupported shell: ${shell} (zsh|bash|fish)`);
       return 2;
     }
   }
   if (wantClaude) {
-    const p = join(share, 'claude-wrapper.sh');
-    if (!existsSync(p)) { logError(`claude-wrapper.sh not found at ${p}`); return 1; }
-    process.stdout.write(`source ${shQuote(p)}\n`);
+    process.stdout.write(CLAUDE_WRAPPER);
   }
   return 0;
 }
