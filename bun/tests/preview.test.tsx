@@ -125,14 +125,17 @@ describe('Preview', () => {
     expect(frame).toContain('myws');
   });
 
-  it('home (no-isolate) workspace shows ~/.claude with a (shared, no isolation) tag', () => {
+  it('home (no-isolate) workspace shows ~/.claude as the config dir', () => {
     const ws = makeWs({ ANTHROPIC_BASE_URL: 'https://api.x' });
     ws.noIsolate = true;
     const { lastFrame } = render(<Preview workspace={ws} />);
     const frame = lastFrame() ?? '';
     expect(frame).toContain('CLAUDE_CONFIG_DIR');
     expect(frame).toContain('~/.claude');
-    expect(frame).toContain('(shared, no isolation)');
+    // Plain path, no extra tagging — the row's '· home' marker already
+    // signals the workspace is the home/no-isolate one.
+    expect(frame).not.toContain('shared');
+    expect(frame).not.toContain('no isolation');
   });
 
   it('tilde-shortens long ws paths under $HOME', () => {

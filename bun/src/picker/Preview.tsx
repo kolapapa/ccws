@@ -59,7 +59,7 @@ export const Preview: React.FC<PreviewProps> = ({ workspace }) => {
   const rows = buildRows(workspace.env);
   const wsDir = dirname(workspace.envPath);
   const configDir = workspace.noIsolate
-    ? `${tildeify((process.env.HOME ?? '') + '/.claude')}  (shared, no isolation)`
+    ? tildeify((process.env.HOME ?? '') + '/.claude')
     : midEllipsize(tildeify(wsDir), PATH_MAX);
 
   if (rows.length === 0) {

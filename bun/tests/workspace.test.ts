@@ -9,7 +9,22 @@ describe('scanWorkspaces', () => {
   it('lists all workspace directories with metadata', () => {
     const ws = scanWorkspaces({ workspacesDir: FIXTURES, activeName: null });
     const names = ws.map((w) => w.name).sort();
-    expect(names).toEqual(['danger-ws', 'proxied', 'work']);
+    expect(names).toEqual(['danger-ws', 'home-ws', 'proxied', 'work']);
+  });
+
+  it('sorts home (noIsolate=true) workspaces before others, alphabetically within group', () => {
+    const ws = scanWorkspaces({ workspacesDir: FIXTURES, activeName: null });
+    // home-ws is the only noIsolate fixture — it must come first.
+    expect(ws[0]!.name).toBe('home-ws');
+    // The rest are alphabetical.
+    const rest = ws.slice(1).map((w) => w.name);
+    expect(rest).toEqual(['danger-ws', 'proxied', 'work']);
+  });
+
+  it('detects noIsolate when CCWS_NO_ISOLATE=1', () => {
+    const ws = scanWorkspaces({ workspacesDir: FIXTURES, activeName: null });
+    expect(ws.find((w) => w.name === 'home-ws')!.noIsolate).toBe(true);
+    expect(ws.find((w) => w.name === 'work')!.noIsolate).toBe(false);
   });
 
   it('detects proxy when HTTPS_PROXY / http_proxy / etc. is set', () => {

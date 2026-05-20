@@ -61,6 +61,14 @@ export function scanWorkspaces(opts: ScanOptions): Workspace[] {
       mtime: st.mtimeMs,
     });
   }
+  // Sort: home (noIsolate=true) workspaces first, then alphabetical by name.
+  // Rationale: home workspaces don't have a private CLAUDE_CONFIG_DIR — they're
+  // the "default" surface (one click → run with the user's everyday config),
+  // so they should be top of the picker.
+  out.sort((a, b) => {
+    if (a.noIsolate !== b.noIsolate) return a.noIsolate ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
   return out;
 }
 
