@@ -8,6 +8,7 @@ import { runWhich } from './commands/which.js';
 import { runHook } from './commands/hook.js';
 import { runLocal } from './commands/local.js';
 import { runGlobal } from './commands/global.js';
+import { runRm } from './commands/rm.js';
 
 export const PICKER_SENTINEL = -1;
 
@@ -58,6 +59,7 @@ registerCommand('which', runWhich);
 registerCommand('hook', runHook);
 registerCommand('local', runLocal);
 registerCommand('global', runGlobal);
+registerCommand('rm', runRm);
 
 export async function dispatch(argv: string[]): Promise<number> {
   let noTui = false;
