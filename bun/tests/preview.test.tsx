@@ -56,24 +56,30 @@ describe('Preview', () => {
     expect(lastFrame()).toContain('(ccws.env empty or malformed)');
   });
 
-  it('shows user-defined env keys not in PREVIEW_KEYS, sorted alphabetically', () => {
+  it('shows user-defined env keys verbatim (preserves case), sorted', () => {
     const ws = makeWs({
       ANTHROPIC_BASE_URL: 'https://api.x',
       MY_FLAG: 'on',
       AAA_FIRST: 'top',
+      CLAUDE_CODE_ATTRIBUTION_HEADER: '0',
     });
     const { lastFrame } = render(<Preview workspace={ws} />);
     const frame = lastFrame() ?? '';
-    expect(frame).toContain('aaa_first');
+    // Verbatim — capital case preserved
+    expect(frame).toContain('AAA_FIRST');
     expect(frame).toContain('top');
-    expect(frame).toContain('my_flag');
+    expect(frame).toContain('MY_FLAG');
     expect(frame).toContain('on');
-    // Custom keys appear after the known endpoint row
+    expect(frame).toContain('CLAUDE_CODE_ATTRIBUTION_HEADER');
+    expect(frame).toContain(' 0');  // value
+    // Sorted alphabetically, after known keys
     const endpointIdx = frame.indexOf('endpoint');
-    const aaaIdx = frame.indexOf('aaa_first');
-    const myIdx = frame.indexOf('my_flag');
+    const aaaIdx = frame.indexOf('AAA_FIRST');
+    const claudeIdx = frame.indexOf('CLAUDE_CODE_ATTRIBUTION_HEADER');
+    const myIdx = frame.indexOf('MY_FLAG');
     expect(endpointIdx).toBeLessThan(aaaIdx);
-    expect(aaaIdx).toBeLessThan(myIdx);
+    expect(aaaIdx).toBeLessThan(claudeIdx);
+    expect(claudeIdx).toBeLessThan(myIdx);
   });
 
   it('hides internal metadata keys (CCWS_NAME / CCWS_DESCRIPTION)', () => {
@@ -88,14 +94,14 @@ describe('Preview', () => {
     expect(frame).toContain('description');
     expect(frame).toContain('team');
     // CCWS_NAME itself never appears as a row.
-    expect(frame).not.toMatch(/^ccws_name/m);
-    expect(frame).toContain('my_flag');
+    expect(frame).not.toMatch(/CCWS_NAME/);
+    expect(frame).toContain('MY_FLAG');
   });
 
   it('masks user-defined *_TOKEN keys too', () => {
     const ws = makeWs({ OPENAI_API_TOKEN: 'sk-leak' });
     const { lastFrame } = render(<Preview workspace={ws} />);
-    expect(lastFrame()).toContain('openai_api_token');
+    expect(lastFrame()).toContain('OPENAI_API_TOKEN');
     expect(lastFrame()).toContain('***');
     expect(lastFrame()).not.toContain('sk-leak');
   });

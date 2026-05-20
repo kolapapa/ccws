@@ -44,13 +44,13 @@ function buildRows(env: Record<string, string>): Row[] {
   }
 
   // Second pass: any other env key the user added (sorted), excluding
-  // internal metadata. Label = the env name verbatim (lowercased so it
-  // visually groups with the known-key labels). Tokens still masked.
+  // internal metadata. Label = the env name verbatim — match what the
+  // user wrote in ccws.env (don't lowercase). Tokens still masked.
   const extras = Object.keys(env)
     .filter((k) => !consumedKeys.has(k) && !INTERNAL_KEYS.has(k))
     .sort();
   for (const k of extras) {
-    rows.push({ label: k.toLowerCase(), value: maskIfToken(k, env[k]!) });
+    rows.push({ label: k, value: maskIfToken(k, env[k]!) });
   }
 
   return rows;
