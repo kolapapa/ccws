@@ -27,16 +27,28 @@ describe('reducer', () => {
     expect(next.cursorName).toBe('deepseek');
   });
 
-  it('moveCursor down at end is a no-op (no wrap)', () => {
+  it('moveCursor down at the end wraps to the first item', () => {
     const s: State = { workspaces: [A, D, G], query: '', cursorName: 'gradient' };
     const next = reducer(s, { type: 'moveCursor', dir: 'down' });
+    expect(next.cursorName).toBe('astratech');
+  });
+
+  it('moveCursor up at the start wraps to the last item', () => {
+    const s: State = { workspaces: [A, D, G], query: '', cursorName: 'astratech' };
+    const next = reducer(s, { type: 'moveCursor', dir: 'up' });
     expect(next.cursorName).toBe('gradient');
   });
 
-  it('moveCursor up at start is a no-op', () => {
-    const s: State = { workspaces: [A, D, G], query: '', cursorName: 'astratech' };
+  it('moveCursor up from middle decrements normally', () => {
+    const s: State = { workspaces: [A, D, G], query: '', cursorName: 'deepseek' };
     const next = reducer(s, { type: 'moveCursor', dir: 'up' });
     expect(next.cursorName).toBe('astratech');
+  });
+
+  it('moveCursor on a single-item list is a no-op (wrap to self)', () => {
+    const s: State = { workspaces: [A], query: '', cursorName: 'astratech' };
+    expect(reducer(s, { type: 'moveCursor', dir: 'down' }).cursorName).toBe('astratech');
+    expect(reducer(s, { type: 'moveCursor', dir: 'up' }).cursorName).toBe('astratech');
   });
 
   it('setQuery filters by fuzzy substring of name', () => {

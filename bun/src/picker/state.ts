@@ -36,8 +36,10 @@ export function reducer(state: State, action: Action): State {
       if (idx === -1) {
         return { ...state, cursorName: list[0]!.name };
       }
-      const nextIdx = action.dir === 'down' ? idx + 1 : idx - 1;
-      if (nextIdx < 0 || nextIdx >= list.length) return state;
+      const len = list.length;
+      const nextIdx = action.dir === 'down'
+        ? (idx + 1) % len
+        : (idx - 1 + len) % len;
       return { ...state, cursorName: list[nextIdx]!.name };
     }
     case 'setQuery': {
