@@ -44,7 +44,7 @@ describe('Row', () => {
 
   it('renders yolo glyph when dangerous=true', () => {
     const { lastFrame } = render(<Row workspace={{ ...baseWs, dangerous: true }} isCursor={false} />);
-    expect(lastFrame()).toContain('⚡ yolo');
+    expect(lastFrame()).toContain('! yolo');
   });
 
   it('renders safe glyph when dangerous=false', () => {

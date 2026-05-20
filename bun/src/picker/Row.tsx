@@ -87,7 +87,7 @@ export const Row: React.FC<RowProps> = ({ workspace, isCursor }) => {
       )}
       <Text>  </Text>
       {workspace.dangerous ? (
-        <Text color={COLORS.red}>⚡ yolo </Text>
+        <Text color={COLORS.red} bold>! yolo </Text>
       ) : (
         <Text color={COLORS.fg}>· safe </Text>
       )}

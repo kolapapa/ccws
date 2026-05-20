@@ -89,7 +89,7 @@ describe('App', () => {
     const lines = (lastFrame() ?? '').split('\n');
     const cursorLine = lines.find((l) => l.includes('❯'));
     expect(cursorLine).toContain('deepseek');
-    expect(lastFrame() ?? '').toContain('⚡ yolo');
+    expect(lastFrame() ?? '').toContain('! yolo');
   });
 
   it('Tab again removes CCWS_DANGEROUS, switching back to safe', async () => {
