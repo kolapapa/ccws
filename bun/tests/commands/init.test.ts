@@ -1,0 +1,84 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { runInit } from '../../src/commands/init.js';
+import { _setReader } from '../../src/prompt.js';
+
+describe('runInit', () => {
+  let tmp: string;
+  const origEnv = { ...process.env };
+  let errs: string[];
+  let errSpy: { mockRestore: () => void };
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'ccws-init-'));
+    process.env = { ...origEnv };
+    process.env.HOME = tmp;
+    process.env.CCWS_ROOT = join(tmp, '.ccws');
+    process.env.CCWS_REAL_CLAUDE_DIR = join(tmp, '.claude');
+    process.env.CCWS_DIR = join(tmp, 'src');
+    mkdirSync(join(tmp, 'src/share/commands'), { recursive: true });
+    writeFileSync(join(tmp, 'src/share/commands/whoami.md'), '# whoami');
+    writeFileSync(join(tmp, 'src/share/commands/switch.md'), '# switch');
+    errs = [];
+    errSpy = vi.spyOn(process.stderr, 'write').mockImplementation((c: unknown) => { errs.push(String(c)); return true; });
+  });
+  afterEach(() => { errSpy.mockRestore(); _setReader(null); rmSync(tmp, { recursive: true, force: true }); process.env = origEnv; });
+
+  it('exit 2 on unknown flag', async () => {
+    expect(await runInit(['--what'])).toBe(2);
+  });
+
+  it('--help returns 0', async () => {
+    expect(await runInit(['--help'])).toBe(0);
+  });
+
+  it('idempotent: if workspaces dir is non-empty, print status and exit 0', async () => {
+    mkdirSync(join(tmp, '.ccws/workspaces/existing'), { recursive: true });
+    expect(await runInit([])).toBe(0);
+    expect(errs.join('')).toMatch(/already initialized/);
+  });
+
+  it('happy path with existing ~/.claude and skipped first workspace', async () => {
+    mkdirSync(join(tmp, '.claude'), { recursive: true });
+    _setReader(async () => '\n');
+    expect(await runInit([])).toBe(0);
+    expect(existsSync(join(tmp, '.ccws/workspaces'))).toBe(true);
+    expect(existsSync(join(tmp, '.claude/commands/whoami.md'))).toBe(true);
+    expect(existsSync(join(tmp, '.claude/commands/switch.md'))).toBe(true);
+  });
+
+  it('cancels when user declines to bootstrap missing ~/.claude', async () => {
+    _setReader(async () => 'n\n');
+    expect(await runInit([])).toBe(0);
+    expect(errs.join('')).toMatch(/cancelled\. Run 'claude' once/);
+    expect(existsSync(join(tmp, '.claude'))).toBe(false);
+  });
+
+  it('bootstraps ~/.claude when user says yes', async () => {
+    const replies = ['y\n', '\n'];
+    let i = 0;
+    _setReader(async () => replies[i++] ?? null);
+    expect(await runInit([])).toBe(0);
+    expect(existsSync(join(tmp, '.claude/commands'))).toBe(true);
+    expect(existsSync(join(tmp, '.claude/plugins'))).toBe(true);
+    expect(readFileSync(join(tmp, '.claude/settings.json'), 'utf8')).toBe('{}');
+  });
+
+  it('--reset cancels when user answers no', async () => {
+    mkdirSync(join(tmp, '.ccws/workspaces/x'), { recursive: true });
+    _setReader(async () => 'n\n');
+    expect(await runInit(['--reset'])).toBe(1);
+    expect(existsSync(join(tmp, '.ccws'))).toBe(true);
+  });
+
+  it('--reset wipes ~/.ccws when user confirms', async () => {
+    mkdirSync(join(tmp, '.ccws/workspaces/x'), { recursive: true });
+    mkdirSync(join(tmp, '.claude'), { recursive: true });
+    const replies = ['y\n', '\n'];
+    let i = 0;
+    _setReader(async () => replies[i++] ?? null);
+    expect(await runInit(['--reset'])).toBe(0);
+    expect(existsSync(join(tmp, '.ccws/workspaces/x'))).toBe(false);
+  });
+});
