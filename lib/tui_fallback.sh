@@ -26,6 +26,7 @@ ccws_tui_fallback_pick() {
     local green=$'\033[38;2;166;227;161m'
     local green_bold=$'\033[38;2;166;227;161;1m'
     local yellow=$'\033[38;2;249;226;175m'
+    local red=$'\033[38;2;243;139;168m'
     local dim=$'\033[38;2;108;112;134m'
     local rs=$'\033[0m'
 
@@ -38,11 +39,12 @@ ccws_tui_fallback_pick() {
     local i=1
     local names=()
     for line in "${lines[@]}"; do
-        local n e p _
-        IFS='|' read -r n e p _ <<< "$line"
+        local n e p d _
+        IFS='|' read -r n e p d _ <<< "$line"
         n=$(echo "$n" | xargs)
         e=$(echo "$e" | xargs)
         p=$(echo "$p" | xargs)
+        d=$(echo "$d" | xargs)
         names+=("$n")
 
         # Name color signals active state. No in-row marker — the numbered
@@ -81,16 +83,26 @@ ccws_tui_fallback_pick() {
         # Proxy badge (glyph + color, redundant for colorblind users).
         local proxy_disp
         if [[ "$p" == "on" ]]; then
-            proxy_disp="${green}● proxy${rs}"
+            proxy_disp="${green}● proxy ${rs}"
         else
             proxy_disp="${dim}○ direct${rs}"
         fi
 
-        printf '%s%s%d)%s %s%s%s%s  %s%s%s%s  %s%s\n' \
+        # Dangerous badge. Red ⚡ when on, dim · when off. fzf picker
+        # uses identical glyphs; the fallback echoes them so the two
+        # surfaces read as one design.
+        local danger_disp
+        if [[ "$d" == "on" ]]; then
+            danger_disp="${red}⚡ yolo  ${rs}"
+        else
+            danger_disp="${dim}· safe  ${rs}"
+        fi
+
+        printf '%s%s%d)%s %s%s%s%s  %s%s%s%s  %s  %s%s\n' \
             "$indent" "$dim" "$i" "$rs" \
             "$name_color" "$n" "$rs" "$name_pad" \
             "$ep_color" "$e_short" "$rs" "$ep_pad" \
-            "$proxy_disp" "$active_suffix" >&2
+            "$proxy_disp" "$danger_disp" "$active_suffix" >&2
         i=$((i + 1))
     done
     printf '\n' >&2

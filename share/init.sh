@@ -41,12 +41,22 @@ ccws() {
             exports=$("$CCWS_DIR/bin/ccws") || return $?
             if [[ -n "$exports" ]]; then
                 eval "$exports"
-                # Offer to launch claude immediately
-                printf 'Launch claude now? [Y/n] ' >&2
+                # Offer to launch claude immediately. If the workspace is
+                # marked dangerous (CCWS_DANGEROUS=1, toggled via `y` in
+                # the picker), pass --dangerously-skip-permissions when
+                # we do launch — but still honor the [Y/n] prompt so the
+                # user has one last out.
+                local launch_cmd=(claude)
+                if [[ "${CCWS_DANGEROUS:-0}" == "1" ]]; then
+                    launch_cmd=(claude --dangerously-skip-permissions)
+                    printf 'Launch claude --dangerously-skip-permissions now? [Y/n] ' >&2
+                else
+                    printf 'Launch claude now? [Y/n] ' >&2
+                fi
                 local r
                 IFS= read -r r
                 if [[ "$r" != "n" && "$r" != "N" ]]; then
-                    claude
+                    "${launch_cmd[@]}"
                 fi
             fi
             ;;

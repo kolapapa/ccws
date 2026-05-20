@@ -4,7 +4,8 @@
 # All TUI surfaces (fzf, fallback, gum) share visual vocabulary from DESIGN.md.
 # Helpers exported here:
 #   ccws_tui_engine          → which renderer to use this run
-#   ccws_tui_collect_workspaces → "name | endpoint | proxy | mtime" lines
+#   ccws_tui_collect_workspaces → "name | endpoint | proxy | dangerous | mtime" lines
+#   ccws_tui_format_rows     → ANSI-colored, padded picker rows (single SoT)
 #   ccws_tui_short_endpoint  → normalize endpoint URL to short label
 #   ccws_tui_truncate        → trim string to N visible cols with "…"
 #   ccws_tui_ghost_hint      → dim footer string when CCWS_NAME points at a deleted workspace
@@ -282,8 +283,8 @@ ccws_tui_engine() {
     fi
 }
 
-# Outputs lines: "name | endpoint | proxy | last_modified_unix"
-# proxy is "on" or "off"
+# Outputs lines: "name | endpoint | proxy | dangerous | last_modified_unix"
+# proxy and dangerous are each "on" or "off".
 ccws_tui_collect_workspaces() {
     local ws_dir
     ws_dir=$(ccws_workspaces_dir)
@@ -296,10 +297,97 @@ ccws_tui_collect_workspaces() {
         endpoint=$(ccws_env_get "$name" ANTHROPIC_BASE_URL || true)
         local proxy="off"
         ccws_env_has_proxy "$name" && proxy="on"
+        local dangerous="off"
+        ccws_env_is_dangerous "$name" && dangerous="on"
         local mtime
         mtime=$(stat -f %m "$d" 2>/dev/null || stat -c %Y "$d")
-        printf '%s | %s | %s | %s\n' "$name" "${endpoint:-anthropic}" "$proxy" "$mtime"
+        printf '%s | %s | %s | %s | %s\n' "$name" "${endpoint:-anthropic}" "$proxy" "$dangerous" "$mtime"
     done
+}
+
+# Render workspace rows for the picker: ANSI-colored, padded columns.
+# Shared between ccws_tui_fzf_pick (initial paint) and the internal
+# `ccws _tui-format` subcommand used by fzf's `y:reload(...)` binding.
+# Single source of truth for picker row formatting — change here and
+# both code paths follow.
+ccws_tui_format_rows() {
+    local raw
+    raw=$(ccws_tui_collect_workspaces)
+    [[ -z "$raw" ]] && return 0
+
+    local name_w=12 ep_w=24
+
+    # Pre-assign ANSI escapes — bash 3.2 (macOS /bin/bash) mis-parses
+    # semicolons inside $'\033[38;2;R;G;Bm' literals when those literals
+    # appear directly in case arms.
+    local c_pink=$'\033[38;2;245;194;231m'
+    local c_green=$'\033[38;2;166;227;161m'
+    local c_green_bold=$'\033[38;2;166;227;161;1m'
+    local c_sky=$'\033[38;2;137;220;235m'
+    local c_yellow=$'\033[38;2;249;226;175m'
+    local c_lavender=$'\033[38;2;180;190;254m'
+    local c_red=$'\033[38;2;243;139;168m'
+    local c_dim=$'\033[38;2;108;112;134m'
+    local c_rs=$'\033[0m'
+
+    local name endpoint proxy dangerous _mtime
+    while IFS='|' read -r name endpoint proxy dangerous _mtime; do
+        name=$(printf '%s' "$name" | awk '{$1=$1};1')
+        endpoint=$(printf '%s' "$endpoint" | awk '{$1=$1};1')
+        proxy=$(printf '%s' "$proxy" | awk '{$1=$1};1')
+        dangerous=$(printf '%s' "$dangerous" | awk '{$1=$1};1')
+
+        local ep_short
+        ep_short=$(ccws_tui_short_endpoint "$endpoint")
+        ep_short=$(ccws_tui_truncate "$ep_short" "$ep_w")
+
+        local name_disp
+        name_disp=$(ccws_tui_truncate "$name" "$name_w")
+
+        local name_pad="" ep_pad=""
+        [[ ${#name_disp} -lt $name_w ]] && printf -v name_pad '%*s' $((name_w - ${#name_disp})) ""
+        [[ ${#ep_short}   -lt $ep_w   ]] && printf -v ep_pad   '%*s' $((ep_w   - ${#ep_short}))   ""
+
+        local name_color active_suffix=""
+        if [[ "${CCWS_NAME:-}" == "$name" ]]; then
+            name_color="$c_green_bold"
+            active_suffix="  ${c_dim}· active${c_rs}"
+        else
+            name_color="$c_pink"
+        fi
+
+        local ep_color
+        if [[ "$ep_short" == "anthropic" ]]; then
+            ep_color="$c_sky"
+        elif [[ "$ep_short" == *-gw ]]; then
+            ep_color="$c_yellow"
+        else
+            ep_color="$c_lavender"
+        fi
+
+        local proxy_disp
+        if [[ "$proxy" == "on" ]]; then
+            proxy_disp="${c_green}● proxy ${c_rs}"
+        else
+            proxy_disp="${c_dim}○ direct${c_rs}"
+        fi
+
+        # Dangerous badge. Red ⚡ when on (visual warning), dim · when
+        # off. Width-matched to "proxy " column so the active suffix
+        # lines up across rows.
+        local danger_disp
+        if [[ "$dangerous" == "on" ]]; then
+            danger_disp="${c_red}⚡ yolo  ${c_rs}"
+        else
+            danger_disp="${c_dim}· safe  ${c_rs}"
+        fi
+
+        printf '%s%s%s%s  %s%s%s%s  %s  %s%s\n' \
+            "$name_color" "$name_disp" "$c_rs" "$name_pad" \
+            "$ep_color" "$ep_short" "$c_rs" "$ep_pad" \
+            "$proxy_disp" \
+            "$danger_disp" "$active_suffix"
+    done <<< "$raw"
 }
 
 # Main entry point — returns selected workspace name on stdout, empty if cancelled.

@@ -83,4 +83,42 @@ ccws_env_has_proxy() {
     grep -qE '^(HTTPS?_PROXY|ALL_PROXY|https?_proxy|all_proxy)=' "$envfile"
 }
 
+# Returns 0 if the workspace is marked dangerous (CCWS_DANGEROUS=1 in
+# ccws.env), 1 otherwise. The picker shows this state and ccws use exports
+# it; share/init.sh launches `claude --dangerously-skip-permissions` when
+# it sees CCWS_DANGEROUS=1 in the exported env.
+ccws_env_is_dangerous() {
+    local name="$1"
+    local envfile
+    envfile=$(ccws_env_file "$name")
+    [[ -f "$envfile" ]] || return 1
+    grep -qE '^CCWS_DANGEROUS=1[[:space:]]*$' "$envfile"
+}
+
+# Set a single key=value in ccws.env. Replaces the existing line if the key
+# is present, otherwise appends. Keys must be valid identifiers (no shell
+# injection). Writes via a temp file + rename for atomicity. Used by the
+# picker's `y` binding to flip CCWS_DANGEROUS without rewriting the whole
+# env file.
+ccws_env_set() {
+    local name="$1" key="$2" value="$3"
+    [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || return 1
+    local envfile
+    envfile=$(ccws_env_file "$name")
+    [[ -f "$envfile" ]] || return 1
+    local tmp
+    tmp=$(mktemp "${envfile}.XXXXXX") || return 1
+    if grep -q "^${key}=" "$envfile"; then
+        awk -v k="$key" -v v="$value" '
+            BEGIN { replaced = 0 }
+            $0 ~ "^"k"=" && !replaced { print k"="v; replaced = 1; next }
+            { print }
+        ' "$envfile" > "$tmp" || { rm -f "$tmp"; return 1; }
+    else
+        cat "$envfile" > "$tmp" || { rm -f "$tmp"; return 1; }
+        printf '%s=%s\n' "$key" "$value" >> "$tmp"
+    fi
+    mv "$tmp" "$envfile"
+}
+
 export CCWS_ENV_LOADED=1

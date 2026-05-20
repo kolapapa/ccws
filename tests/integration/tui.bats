@@ -10,6 +10,7 @@ setup() {
     ccws_source lock.sh
     ccws_source symlink_farm.sh
     ccws_source cmd_add.sh
+    ccws_source cmd_toggle_danger.sh
     ccws_source tui.sh
     ccws_source tui_fallback.sh
 
@@ -34,6 +35,44 @@ teardown() {
     # proxied row has "on", others have "off"
     echo "$output" | grep "proxied" | grep -q " on "
     echo "$output" | grep "work" | grep -q " off "
+}
+
+@test "ccws_tui_collect_workspaces emits dangerous=off by default" {
+    run ccws_tui_collect_workspaces
+    # 5-field format: name | endpoint | proxy | dangerous | mtime.
+    # Fresh `ccws add` workspaces have no CCWS_DANGEROUS in ccws.env →
+    # dangerous=off.
+    [[ "$(echo "$output" | grep work    | awk -F'\\|' '{gsub(/ /, "", $4); print $4}')" == "off" ]]
+    [[ "$(echo "$output" | grep personal | awk -F'\\|' '{gsub(/ /, "", $4); print $4}')" == "off" ]]
+}
+
+@test "ccws_env_set / ccws_env_is_dangerous toggle CCWS_DANGEROUS correctly" {
+    # Initially off
+    ! ccws_env_is_dangerous work
+    # Set to 1, expect on
+    ccws_env_set work CCWS_DANGEROUS 1
+    ccws_env_is_dangerous work
+    # Set to 0, expect off
+    ccws_env_set work CCWS_DANGEROUS 0
+    ! ccws_env_is_dangerous work
+}
+
+@test "ccws_cmd_toggle_danger flips the workspace flag (round-trip)" {
+    # Round-trip: not-set → on → off.
+    ! ccws_env_is_dangerous work
+    ccws_cmd_toggle_danger work
+    ccws_env_is_dangerous work
+    ccws_cmd_toggle_danger work
+    ! ccws_env_is_dangerous work
+}
+
+@test "ccws_cmd_toggle_danger accepts an ANSI-colored row (fzf {} substitution)" {
+    # The picker passes fzf's {} which contains ANSI escapes. The command
+    # must strip ANSI and pull the name from the first whitespace-separated
+    # token.
+    local ansi=$'\033[38;2;245;194;231mwork        \033[0m  \033[38;2;137;220;235manthropic   \033[0m  \033[38;2;108;112;134m○ direct\033[0m'
+    ccws_cmd_toggle_danger "$ansi"
+    ccws_env_is_dangerous work
 }
 
 @test "ccws_tui_short_endpoint normalizes URLs to short labels" {

@@ -44,9 +44,20 @@ function ccws --description "Claude Code WorkSpace switcher"
                         set -gx $key $val
                     end
                 end
-                read -P "Launch claude now? [Y/n] " r
-                if test "$r" != "n" -a "$r" != "N"
-                    claude
+                # Mirror share/init.sh: if the workspace is marked
+                # dangerous (CCWS_DANGEROUS=1, toggled via `y` in the
+                # picker), pass --dangerously-skip-permissions on launch.
+                # The [Y/n] prompt stays as a last-chance out.
+                if test "$CCWS_DANGEROUS" = "1"
+                    read -P "Launch claude --dangerously-skip-permissions now? [Y/n] " r
+                    if test "$r" != "n" -a "$r" != "N"
+                        claude --dangerously-skip-permissions
+                    end
+                else
+                    read -P "Launch claude now? [Y/n] " r
+                    if test "$r" != "n" -a "$r" != "N"
+                        claude
+                    end
                 end
             end
 
