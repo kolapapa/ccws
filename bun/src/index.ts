@@ -4,6 +4,7 @@ import { render } from 'ink';
 import { App } from './picker/App.js';
 import { scanWorkspaces, defaultWorkspacesDir } from './workspace.js';
 import type { LogoGateInputs } from './logoData.js';
+import { dispatch, PICKER_SENTINEL } from './cli.js';
 
 function gateInputs(): LogoGateInputs {
   return {
@@ -14,31 +15,40 @@ function gateInputs(): LogoGateInputs {
   };
 }
 
-async function main(): Promise<void> {
+async function runPicker(): Promise<number> {
   const workspacesDir = defaultWorkspacesDir();
   const initial = scanWorkspaces({ workspacesDir, activeName: process.env.CCWS_NAME ?? null });
   if (initial.length === 0) {
     process.stderr.write("ccws: warn: no workspaces — run 'ccws add <name>'\n");
-    process.exit(1);
+    return 1;
   }
 
-  const inkInstance = render(
-    React.createElement(App, {
-      workspacesDir,
-      activeName: process.env.CCWS_NAME ?? null,
-      logoGate: gateInputs(),
-      onExit: (selected, exitCode) => {
-        inkInstance.unmount();
-        if (selected !== null && exitCode === 0) {
-          process.stdout.write(`${selected}\n`);
-        }
-        process.exit(exitCode);
-      },
-    }),
-    { stdout: process.stderr, exitOnCtrlC: false },
-  );
+  return new Promise<number>((resolve) => {
+    const inkInstance = render(
+      React.createElement(App, {
+        workspacesDir,
+        activeName: process.env.CCWS_NAME ?? null,
+        logoGate: gateInputs(),
+        onExit: (selected, exitCode) => {
+          inkInstance.unmount();
+          if (selected !== null && exitCode === 0) {
+            process.stdout.write(`${selected}\n`);
+          }
+          resolve(exitCode);
+        },
+      }),
+      { stdout: process.stderr, exitOnCtrlC: false },
+    );
+    inkInstance.waitUntilExit().catch(() => resolve(1));
+  });
+}
 
-  await inkInstance.waitUntilExit();
+async function main(): Promise<void> {
+  const code = await dispatch(process.argv.slice(2));
+  if (code === PICKER_SENTINEL) {
+    process.exit(await runPicker());
+  }
+  process.exit(code);
 }
 
 void main();
