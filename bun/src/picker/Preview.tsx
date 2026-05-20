@@ -1,59 +1,31 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import type { Workspace } from '../workspace.js';
-import { PREVIEW_KEYS } from './previewKeys.js';
 import { COLORS } from '../colors.js';
 
-const TOKEN_LIKE = /_(TOKEN|AUTH|AUTH_TOKEN)$/;
+const TOKEN_LIKE = /(_TOKEN|_AUTH|_AUTH_TOKEN|_KEY)$/i;
 
-// Internal metadata that is part of the workspace itself, not user config.
-// CCWS_CREATED is exposed as "created" via PREVIEW_KEYS, so it's still shown
-// — just don't double-print it under the catch-all section.
-const INTERNAL_KEYS = new Set([
-  'CCWS_NAME',
-  'CCWS_CREATED',
-  'CCWS_DESCRIPTION',
-]);
+// Workspace identity — handled elsewhere in the picker / row, don't repeat
+// in the preview. CCWS_NAME shows in the row, CCWS_DANGEROUS shows as the
+// yolo/safe glyph. Everything else the user wrote in ccws.env shows here
+// verbatim.
+const INTERNAL_KEYS = new Set(['CCWS_NAME', 'CCWS_DANGEROUS']);
 
 interface Row {
   label: string;
   value: string;
 }
 
-function maskIfToken(envName: string, value: string): string {
+function maskIfSecret(envName: string, value: string): string {
   if (TOKEN_LIKE.test(envName) && value !== '') return '***';
   return value;
 }
 
 function buildRows(env: Record<string, string>): Row[] {
-  const rows: Row[] = [];
-  const seenLabels = new Set<string>();
-  const consumedKeys = new Set<string>();
-
-  // First pass: known keys in PREVIEW_KEYS order, with label dedup.
-  for (const { env: envName, label } of PREVIEW_KEYS) {
-    if (seenLabels.has(label)) {
-      // Still mark as consumed so the catch-all doesn't reprint it.
-      if (envName in env) consumedKeys.add(envName);
-      continue;
-    }
-    if (!(envName in env)) continue;
-    rows.push({ label, value: maskIfToken(envName, env[envName]!) });
-    seenLabels.add(label);
-    consumedKeys.add(envName);
-  }
-
-  // Second pass: any other env key the user added (sorted), excluding
-  // internal metadata. Label = the env name verbatim — match what the
-  // user wrote in ccws.env (don't lowercase). Tokens still masked.
-  const extras = Object.keys(env)
-    .filter((k) => !consumedKeys.has(k) && !INTERNAL_KEYS.has(k))
-    .sort();
-  for (const k of extras) {
-    rows.push({ label: k, value: maskIfToken(k, env[k]!) });
-  }
-
-  return rows;
+  return Object.keys(env)
+    .filter((k) => !INTERNAL_KEYS.has(k))
+    .sort()
+    .map((k) => ({ label: k, value: maskIfSecret(k, env[k]!) }));
 }
 
 export interface PreviewProps {
@@ -70,7 +42,7 @@ export const Preview: React.FC<PreviewProps> = ({ workspace }) => {
       </Box>
     );
   }
-  const labelWidth = Math.max(14, ...rows.map((r) => r.label.length + 2));
+  const labelWidth = Math.max(...rows.map((r) => r.label.length)) + 2;
   return (
     <Box flexDirection="column">
       {rows.map((row) => (

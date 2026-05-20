@@ -18,91 +18,92 @@ function makeWs(env: Record<string, string>): Workspace {
 }
 
 describe('Preview', () => {
-  it('renders endpoint + token label/value pairs', () => {
+  it('renders every ccws.env key verbatim with original case', () => {
     const ws = makeWs({
       ANTHROPIC_BASE_URL: 'https://api.anthropic.com',
-      ANTHROPIC_AUTH_TOKEN: 'secret',
-    });
-    const { lastFrame } = render(<Preview workspace={ws} />);
-    const frame = lastFrame() ?? '';
-    expect(frame).toContain('endpoint');
-    expect(frame).toContain('https://api.anthropic.com');
-    expect(frame).toContain('token');
-    expect(frame).toContain('***');
-    expect(frame).not.toContain('secret');
-  });
-
-  it('dedupes labels (HTTPS_PROXY + http_proxy both label "proxy" → one row)', () => {
-    const ws = makeWs({
-      HTTPS_PROXY: 'http://1.2.3.4:8080',
-      http_proxy: 'http://1.2.3.4:8080',
-    });
-    const { lastFrame } = render(<Preview workspace={ws} />);
-    const frame = lastFrame() ?? '';
-    const proxyRows = frame.split('\n').filter((row) => /\bproxy\b/.test(row));
-    expect(proxyRows.length).toBe(1);
-  });
-
-  it('masks *_TOKEN, *_AUTH, *_AUTH_TOKEN values', () => {
-    const ws = makeWs({ ANTHROPIC_AUTH_TOKEN: 's3cret' });
-    const { lastFrame } = render(<Preview workspace={ws} />);
-    expect(lastFrame()).toContain('***');
-    expect(lastFrame()).not.toContain('s3cret');
-  });
-
-  it('renders (ccws.env empty or malformed) warning when env is empty', () => {
-    const ws = makeWs({});
-    const { lastFrame } = render(<Preview workspace={ws} />);
-    expect(lastFrame()).toContain('(ccws.env empty or malformed)');
-  });
-
-  it('shows user-defined env keys verbatim (preserves case), sorted', () => {
-    const ws = makeWs({
-      ANTHROPIC_BASE_URL: 'https://api.x',
-      MY_FLAG: 'on',
-      AAA_FIRST: 'top',
+      ANTHROPIC_DEFAULT_OPUS_MODEL: 'claude-opus-4',
       CLAUDE_CODE_ATTRIBUTION_HEADER: '0',
     });
     const { lastFrame } = render(<Preview workspace={ws} />);
     const frame = lastFrame() ?? '';
-    // Verbatim — capital case preserved
-    expect(frame).toContain('AAA_FIRST');
-    expect(frame).toContain('top');
-    expect(frame).toContain('MY_FLAG');
-    expect(frame).toContain('on');
+    expect(frame).toContain('ANTHROPIC_BASE_URL');
+    expect(frame).toContain('https://api.anthropic.com');
+    expect(frame).toContain('ANTHROPIC_DEFAULT_OPUS_MODEL');
+    expect(frame).toContain('claude-opus-4');
     expect(frame).toContain('CLAUDE_CODE_ATTRIBUTION_HEADER');
-    expect(frame).toContain(' 0');  // value
-    // Sorted alphabetically, after known keys
-    const endpointIdx = frame.indexOf('endpoint');
-    const aaaIdx = frame.indexOf('AAA_FIRST');
-    const claudeIdx = frame.indexOf('CLAUDE_CODE_ATTRIBUTION_HEADER');
-    const myIdx = frame.indexOf('MY_FLAG');
-    expect(endpointIdx).toBeLessThan(aaaIdx);
-    expect(aaaIdx).toBeLessThan(claudeIdx);
-    expect(claudeIdx).toBeLessThan(myIdx);
+    // value 0 follows the padded label
+    expect(frame).toMatch(/CLAUDE_CODE_ATTRIBUTION_HEADER\s+0/);
   });
 
-  it('hides internal metadata keys (CCWS_NAME / CCWS_DESCRIPTION)', () => {
+  it('rows are sorted alphabetically by key', () => {
+    const ws = makeWs({
+      Z_LAST: 'z',
+      A_FIRST: 'a',
+      M_MID: 'm',
+    });
+    const { lastFrame } = render(<Preview workspace={ws} />);
+    const frame = lastFrame() ?? '';
+    const a = frame.indexOf('A_FIRST');
+    const m = frame.indexOf('M_MID');
+    const z = frame.indexOf('Z_LAST');
+    expect(a).toBeGreaterThanOrEqual(0);
+    expect(a).toBeLessThan(m);
+    expect(m).toBeLessThan(z);
+  });
+
+  it('masks values for keys ending in _TOKEN, _AUTH, _AUTH_TOKEN, _KEY (any case)', () => {
+    const ws = makeWs({
+      ANTHROPIC_AUTH_TOKEN: 'sk-secret',
+      OPENAI_API_KEY: 'sk-anothersecret',
+      my_auth: 'lowsec',
+    });
+    const { lastFrame } = render(<Preview workspace={ws} />);
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('ANTHROPIC_AUTH_TOKEN');
+    expect(frame).toContain('OPENAI_API_KEY');
+    expect(frame).toContain('my_auth');
+    expect(frame).not.toContain('sk-secret');
+    expect(frame).not.toContain('sk-anothersecret');
+    expect(frame).not.toContain('lowsec');
+    // Three '***' rows
+    expect(frame.match(/\*\*\*/g)?.length ?? 0).toBe(3);
+  });
+
+  it('hides internal workspace keys (CCWS_NAME, CCWS_DANGEROUS)', () => {
     const ws = makeWs({
       CCWS_NAME: 'work',
+      CCWS_DANGEROUS: '1',
       CCWS_DESCRIPTION: 'team',
       MY_FLAG: 'on',
     });
     const { lastFrame } = render(<Preview workspace={ws} />);
     const frame = lastFrame() ?? '';
-    // CCWS_DESCRIPTION IS in PREVIEW_KEYS as "description" — that one shows.
-    expect(frame).toContain('description');
-    expect(frame).toContain('team');
-    // CCWS_NAME itself never appears as a row.
     expect(frame).not.toMatch(/CCWS_NAME/);
+    expect(frame).not.toMatch(/CCWS_DANGEROUS/);
+    // CCWS_DESCRIPTION is user-visible metadata — show it.
+    expect(frame).toContain('CCWS_DESCRIPTION');
+    expect(frame).toContain('team');
     expect(frame).toContain('MY_FLAG');
   });
 
-  it('masks user-defined *_TOKEN keys too', () => {
-    const ws = makeWs({ OPENAI_API_TOKEN: 'sk-leak' });
+  it('renders (ccws.env empty or malformed) warning when env yields zero rows', () => {
+    const ws = makeWs({ CCWS_NAME: 'w', CCWS_DANGEROUS: '1' });
     const { lastFrame } = render(<Preview workspace={ws} />);
-    expect(lastFrame()).toContain('OPENAI_API_TOKEN');
-    expect(lastFrame()).toContain('***');
-    expect(lastFrame()).not.toContain('sk-leak');
+    expect(lastFrame()).toContain('(ccws.env empty or malformed)');
+  });
+
+  it('label column width adapts to the longest key', () => {
+    const ws = makeWs({
+      A: '1',
+      VERY_LONG_KEY_NAME_THAT_IS_LONG: '2',
+    });
+    const { lastFrame } = render(<Preview workspace={ws} />);
+    const frame = lastFrame() ?? '';
+    // Both rows are aligned: value column starts at the same x position.
+    const lines = frame.split('\n').filter((l) => l.includes('1') || l.includes('2'));
+    expect(lines.length).toBe(2);
+    const oneIdx = lines[0]!.indexOf('1');
+    const twoIdx = lines[1]!.indexOf('2');
+    expect(oneIdx).toBe(twoIdx);
   });
 });
