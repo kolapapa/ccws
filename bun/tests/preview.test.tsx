@@ -79,18 +79,22 @@ describe('Preview', () => {
     });
     const { lastFrame } = render(<Preview workspace={ws} />);
     const frame = lastFrame() ?? '';
-    expect(frame).not.toMatch(/CCWS_NAME/);
-    expect(frame).not.toMatch(/CCWS_DANGEROUS/);
+    // CCWS_NAME / CCWS_DANGEROUS must not appear as env rows. (CLAUDE_CONFIG_DIR
+    // legitimately appears as the derived-state header — see other tests.)
+    expect(frame).not.toMatch(/^CCWS_NAME/m);
+    expect(frame).not.toMatch(/^CCWS_DANGEROUS/m);
     // CCWS_DESCRIPTION is user-visible metadata — show it.
     expect(frame).toContain('CCWS_DESCRIPTION');
     expect(frame).toContain('team');
     expect(frame).toContain('MY_FLAG');
   });
 
-  it('renders (ccws.env empty or malformed) warning when env yields zero rows', () => {
+  it('renders (ccws.env empty or malformed) warning when env yields zero rows, but still shows CLAUDE_CONFIG_DIR', () => {
     const ws = makeWs({ CCWS_NAME: 'w', CCWS_DANGEROUS: '1' });
     const { lastFrame } = render(<Preview workspace={ws} />);
-    expect(lastFrame()).toContain('(ccws.env empty or malformed)');
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('(ccws.env empty or malformed)');
+    expect(frame).toContain('CLAUDE_CONFIG_DIR');
   });
 
   it('label column width adapts to the longest key', () => {
@@ -100,11 +104,56 @@ describe('Preview', () => {
     });
     const { lastFrame } = render(<Preview workspace={ws} />);
     const frame = lastFrame() ?? '';
-    // Both rows are aligned: value column starts at the same x position.
+    // All rows aligned: value column starts at the same x position.
     const lines = frame.split('\n').filter((l) => l.includes('1') || l.includes('2'));
-    expect(lines.length).toBe(2);
-    const oneIdx = lines[0]!.indexOf('1');
-    const twoIdx = lines[1]!.indexOf('2');
+    expect(lines.length).toBeGreaterThanOrEqual(2);
+    const oneIdx = lines.find((l) => l.includes(' 1'))!.indexOf(' 1');
+    const twoIdx = lines.find((l) => l.includes(' 2'))!.indexOf(' 2');
     expect(oneIdx).toBe(twoIdx);
+  });
+
+  it('shows CLAUDE_CONFIG_DIR at the top with the derived workspace path', () => {
+    const ws = makeWs({ ANTHROPIC_BASE_URL: 'https://api.x' });
+    ws.envPath = '/Users/me/.ccws/workspaces/myws/ccws.env';
+    const { lastFrame } = render(<Preview workspace={ws} />);
+    const frame = lastFrame() ?? '';
+    // CLAUDE_CONFIG_DIR is the first row (above any env entry).
+    const ccdIdx = frame.indexOf('CLAUDE_CONFIG_DIR');
+    const epIdx = frame.indexOf('ANTHROPIC_BASE_URL');
+    expect(ccdIdx).toBeGreaterThanOrEqual(0);
+    expect(ccdIdx).toBeLessThan(epIdx);
+    expect(frame).toContain('myws');
+  });
+
+  it('home (no-isolate) workspace shows ~/.claude with a (shared, no isolation) tag', () => {
+    const ws = makeWs({ ANTHROPIC_BASE_URL: 'https://api.x' });
+    ws.noIsolate = true;
+    const { lastFrame } = render(<Preview workspace={ws} />);
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('CLAUDE_CONFIG_DIR');
+    expect(frame).toContain('~/.claude');
+    expect(frame).toContain('(shared, no isolation)');
+  });
+
+  it('tilde-shortens long ws paths under $HOME', () => {
+    const origHome = process.env.HOME;
+    process.env.HOME = '/Users/me';
+    const ws = makeWs({ ANTHROPIC_BASE_URL: 'https://api.x' });
+    ws.envPath = '/Users/me/.ccws/workspaces/foo/ccws.env';
+    const { lastFrame } = render(<Preview workspace={ws} />);
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('~/.ccws/workspaces/foo');
+    expect(frame).not.toContain('/Users/me/.ccws');
+    process.env.HOME = origHome;
+  });
+
+  it('mid-ellipsizes very long paths', () => {
+    const ws = makeWs({ ANTHROPIC_BASE_URL: 'https://api.x' });
+    ws.envPath = '/super/long/path/x'.repeat(8) + '/myws/ccws.env';
+    const { lastFrame } = render(<Preview workspace={ws} />);
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('…');
+    // Suffix still includes the workspace name (so user can read it).
+    expect(frame).toContain('myws');
   });
 });
