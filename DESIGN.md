@@ -117,6 +117,35 @@ The same project can carry both registers if each surface owns its
 register. Do NOT "normalize" the banner away to match the picker — the
 contrast is intentional, not a bug.
 
+## Bun rewrite (Phase 1+)
+
+Starting with v0.7.0 ccws is rewriting itself in TypeScript on the Bun
+runtime, in five phases:
+
+1. v0.7.0 — TUI picker becomes a compiled binary (`~/.ccws/bin/ccws-picker`).
+   `lib/tui.sh` prefers it when present, falls back to fzf otherwise.
+2. v0.8.0 — `ccws use` / `ccws unset` / `ccws list` / `ccws current` move to TS.
+3. v0.9.0 — `ccws add` / `ccws rm` / `ccws sync` move to TS.
+4. v0.10.0 — `ccws init` / `ccws doctor` / `ccws which` / `ccws local` /
+   `ccws global` / `ccws hook` move to TS.
+5. v1.0.0 — bash code deleted; `bun/dist/ccws` is canonical.
+
+The TS implementation lives in `bun/`. See
+`docs/superpowers/specs/2026-05-20-ccws-bun-rewrite-design.md` for the
+full design rationale and per-phase scope.
+
+Why Bun + Ink:
+- Bun's `bun build --compile` produces a single binary per platform
+  with zero install-time dependencies (no fzf, no gum, no Node).
+- Ink (React-on-terminal) lets us key list rows by workspace name —
+  cursor sticks across Tab-toggle reloads, which fzf's bind syntax
+  couldn't solve no matter which animation primitive we tried
+  (`pos({n})`, `track-current`, `transform[...]`).
+
+The Surface Registry table above describes the bash-era surfaces.
+After Phase 1 those surfaces remain in code as the fallback path; the
+new compiled binary owns the default picker rendering.
+
 ## Versioning
 
 Visual changes that don't change behavior or break keybindings are PATCH
