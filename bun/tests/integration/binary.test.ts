@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, mkdirSync, existsSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -78,11 +78,11 @@ describe('compiled binary', () => {
     expect(r.code).toBe(1);
   });
 
-  it('hook --shell zsh emits an absolute source line', async () => {
-    mkdirSync(join(tmp, 'src/share'), { recursive: true });
-    writeFileSync(join(tmp, 'src/share/init.sh'), '');
-    const r = await run(['hook', '--shell', 'zsh'], { HOME: tmp, CCWS_DIR: join(tmp, 'src') });
+  it('hook --shell zsh emits the embedded ccws() function definition', async () => {
+    const r = await run(['hook', '--shell', 'zsh'], { HOME: tmp });
     expect(r.code).toBe(0);
-    expect(r.stdout.trim()).toBe(`source '${join(tmp, 'src/share/init.sh')}'`);
+    expect(r.stdout).toMatch(/^ccws\(\) \{/);
+    expect(r.stdout).toContain('command ccws');
+    expect(r.stdout).not.toContain('$CCWS_DIR/bin/ccws');
   });
 });
