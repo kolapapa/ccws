@@ -5,24 +5,6 @@ on:
   pull_request:
 
 jobs:
-  bats:
-    name: bats (bash)
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install bats
-        run: |
-          if [[ "${{ runner.os }}" == "macOS" ]]; then
-            brew install bats-core
-          else
-            sudo apt-get update && sudo apt-get install -y bats
-          fi
-      - name: Run bats
-        run: bats tests/integration/
-
   vitest:
     name: vitest (bun)
     runs-on: ${{ matrix.os }}
@@ -36,7 +18,9 @@ jobs:
         run: cd bun && bun install
       - name: Typecheck
         run: cd bun && bun run typecheck
-      - name: Run vitest
+      - name: Build host binary (required by integration tests)
+        run: cd bun && bun run build:host
+      - name: Run vitest (unit + integration)
         run: cd bun && bun run test
 
   build-verify:
