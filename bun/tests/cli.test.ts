@@ -46,3 +46,24 @@ describe('cli.dispatch', () => {
     expect(code).toBe(-1);
   });
 });
+
+describe('cli registration completeness', () => {
+  it('every documented subcommand is registered', async () => {
+    const { dispatch } = await import('../src/cli.js');
+    const subcommands = ['add', 'init', 'list', 'current', 'use', 'unset', 'local', 'global', 'which', 'hook', 'rm', 'sync', 'doctor'];
+    const stderrWrites: string[] = [];
+    const stdoutWrites: string[] = [];
+    const errSpy = vi.spyOn(process.stderr, 'write').mockImplementation((c: unknown) => { stderrWrites.push(String(c)); return true; });
+    const outSpy = vi.spyOn(process.stdout, 'write').mockImplementation((c: unknown) => { stdoutWrites.push(String(c)); return true; });
+    try {
+      for (const c of subcommands) {
+        stderrWrites.length = 0; stdoutWrites.length = 0;
+        await dispatch([c, '--help']).catch(() => {});
+        expect(stderrWrites.join('')).not.toMatch(new RegExp(`unknown command: ${c}`));
+      }
+    } finally {
+      errSpy.mockRestore();
+      outSpy.mockRestore();
+    }
+  });
+});
