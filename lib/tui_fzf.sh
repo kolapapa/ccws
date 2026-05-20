@@ -188,9 +188,13 @@ ccws_tui_fzf_pick() {
     #   alt-k/j is a vim-flavored alternative for keyboard-only users. We
     #   avoid ctrl-u/ctrl-d because those clash with fzf's defaults
     #   (clear-query / half-page-down).
-    # - --bind 'y:transform(...)': flips the current row's CCWS_DANGEROUS
+    # - --bind 'y:transform[...]': flips the current row's CCWS_DANGEROUS
     #   flag (persistent in ccws.env) and re-emits the list with the
-    #   cursor preserved on the toggled row.
+    #   cursor preserved on the toggled row. NOTE the SQUARE BRACKETS —
+    #   fzf's `transform(...)` parser breaks when the argument contains
+    #   parentheses (our printf outputs `reload(...)+pos(N)`), so we use
+    #   the alternative `transform[...]` form documented in the fzf
+    #   manual under "alternative notations".
     #
     #   Why transform and not the simpler execute-silent+reload? Because
     #   fzf's reload action resets the cursor to row 0. track-current was
@@ -230,7 +234,7 @@ ccws_tui_fzf_pick() {
             --pointer="❯" \
             ${start_bind[@]+"${start_bind[@]}"} \
             --bind='pgup:preview-up,pgdn:preview-down,alt-k:preview-up,alt-j:preview-down' \
-            --bind="y:transform(_pos=\$(({n}+1)); $CCWS_DIR/bin/ccws _toggle-danger {} >/dev/null 2>&1; printf 'reload($CCWS_DIR/bin/ccws _tui-format)+pos(%s)' \$_pos)" \
+            --bind="y:transform[_pos=\$(({n}+1)); $CCWS_DIR/bin/ccws _toggle-danger {} >/dev/null 2>&1; printf 'reload($CCWS_DIR/bin/ccws _tui-format)+pos(%s)' \$_pos]" \
             --preview="$preview_cmd" \
             --preview-window='down,55%,wrap,border-top' \
             --preview-label='' \
