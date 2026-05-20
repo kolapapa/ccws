@@ -1,5 +1,6 @@
 import { logError } from './logger.js';
 import { VERSION } from './version.js';
+import { runUse } from './commands/use.js';
 
 export const PICKER_SENTINEL = -1;
 
@@ -41,6 +42,8 @@ const handlers: Record<string, Handler> = {};
 export function registerCommand(name: string, fn: Handler): void {
   handlers[name] = fn;
 }
+
+registerCommand('use', runUse);
 
 export async function dispatch(argv: string[]): Promise<number> {
   let noTui = false;
