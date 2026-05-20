@@ -59,7 +59,7 @@ curl -fsSL https://raw.githubusercontent.com/kolapapa/ccws/main/install.sh | bas
 What this does:
 1. Detect platform (darwin/linux × arm64/x64) and download the matching binary from [GitHub Releases](https://github.com/kolapapa/ccws/releases)
 2. Place at `~/.local/bin/ccws` + `chmod +x`
-3. Append `eval "$(ccws hook --shell zsh)"` (or bash / fish equivalent) to your shell rc
+3. Append `eval "$(ccws hook --shell zsh)"` (or bash / fish equivalent) to your shell rc, plus a commented-out `eval "$(ccws hook --claude)"` line for the optional auto-activation wrapper (see [below](#why---with-claude-wrapper) to enable)
 
 Verify:
 
@@ -94,6 +94,8 @@ This lets you edit `src/**` and re-run `bun run build:host` to test changes loca
 Without it: `claude` runs the real binary. You must `ccws use <name>` first in each shell to pick a workspace.
 
 With it: when you run `claude`, the wrapper checks if a workspace is implicitly set via `.ccws-workspace` (in `$PWD` or any parent) or `~/.ccws/global`. If yes, it runs claude in a subshell with that workspace's env — **without mutating your shell**. Like `pyenv` shims `python`.
+
+**Enable it later (already installed without the flag?)** The default install writes the wrapper line commented-out in your rc. Open `~/.zshrc` (or `~/.bashrc` / `~/.config/fish/config.fish`), uncomment `eval "$(ccws hook --claude)"`, then restart your shell. To turn it off again, re-comment that line.
 
 Conflict warning: if you have an existing `claude` shell function (e.g. from a custom `~/.zsh/claude.sh` profile manager), the ccws wrapper will replace it. Comment out the old `source` line first.
 
@@ -210,8 +212,6 @@ cd /tmp && claude                 # uses ~/.ccws/global, or plain claude
 ccws use company
 claude                            # uses company regardless of $PWD
 ```
-
-To enable later (without re-running install.sh): edit `~/.zshrc`, uncomment the line `eval "$(ccws hook --claude)"`, restart shell.
 
 ## Home workspaces · `CCWS_NO_ISOLATE=1`
 
