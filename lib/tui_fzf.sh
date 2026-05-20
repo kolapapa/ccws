@@ -188,16 +188,15 @@ ccws_tui_fzf_pick() {
     #   alt-k/j is a vim-flavored alternative for keyboard-only users. We
     #   avoid ctrl-u/ctrl-d because those clash with fzf's defaults
     #   (clear-query / half-page-down).
-    # - --bind 'y:execute-silent(...)+reload(...)+pos({n})': flips the
-    #   current row's CCWS_DANGEROUS flag (persistent in ccws.env), then
-    #   re-emits the list so the column updates immediately, then
-    #   restores the cursor to the row that was just toggled. Without
-    #   the trailing pos({n}), fzf's default reload behavior resets the
-    #   cursor to row 0 — making the toggle feel jumpy. {n} is fzf's
-    #   placeholder for the current item's 0-indexed position; it is
-    #   evaluated at trigger time so it points to the row the user just
-    #   yolo-flipped (the list keeps the same names at the same indices
-    #   across reload, only the dangerous column changes).
+    # - --bind 'y:track-current+execute-silent(...)+reload(...)': flips
+    #   the current row's CCWS_DANGEROUS flag (persistent in ccws.env),
+    #   then re-emits the list so the column updates immediately, while
+    #   keeping the cursor on the same workspace. track-current asks fzf
+    #   to remember the current item; on the next reload fzf re-snaps the
+    #   cursor to where that item ended up in the new list (auto-released
+    #   when focus changes). Without track-current the reload resets
+    #   cursor to row 0 — the toggle feels jumpy. pos({n}) was tried but
+    #   fzf's pos() doesn't expand placeholders.
     #
     #   Search conflict: lowercase y is consumed by this bind, so users
     #   cannot include the letter 'y' in a search query. Workspace names
@@ -218,7 +217,7 @@ ccws_tui_fzf_pick() {
             --pointer="❯" \
             ${start_bind[@]+"${start_bind[@]}"} \
             --bind='pgup:preview-up,pgdn:preview-down,alt-k:preview-up,alt-j:preview-down' \
-            --bind="y:execute-silent($CCWS_DIR/bin/ccws _toggle-danger {})+reload($CCWS_DIR/bin/ccws _tui-format)+pos({n})" \
+            --bind="y:track-current+execute-silent($CCWS_DIR/bin/ccws _toggle-danger {})+reload($CCWS_DIR/bin/ccws _tui-format)" \
             --preview="$preview_cmd" \
             --preview-window='down,55%,wrap,border-top' \
             --preview-label='' \
