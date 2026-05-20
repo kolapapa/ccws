@@ -49,6 +49,37 @@ describe('runUse', () => {
     expect(lines).toContain(`export CLAUDE_CONFIG_DIR='${join(tmp, '.ccws/workspaces/work')}'`);
   });
 
+  it('CCWS_NO_ISOLATE=1: skips CLAUDE_CONFIG_DIR + CCWS_REAL_HOME, keeps CCWS_NAME and other env', async () => {
+    writeFileSync(join(tmp, '.ccws/workspaces/work/ccws.env'),
+      'CCWS_NAME=work\nCCWS_NO_ISOLATE=1\nANTHROPIC_BASE_URL=https://api.x\nANTHROPIC_AUTH_TOKEN=sk-1\n');
+    expect(await runUse(['work'])).toBe(0);
+    const lines = out().split('\n');
+    expect(lines).toContain(`export CCWS_NAME='work'`);
+    // No CLAUDE_CONFIG_DIR / CCWS_REAL_HOME — claude/plugins fall back to ~/.claude
+    expect(out()).not.toContain('CLAUDE_CONFIG_DIR');
+    expect(out()).not.toContain('CCWS_REAL_HOME');
+    // But the workspace's API config still ships
+    expect(lines).toContain(`export ANTHROPIC_BASE_URL='https://api.x'`);
+    expect(lines).toContain(`export ANTHROPIC_AUTH_TOKEN='sk-1'`);
+    // CCWS_NO_ISOLATE itself is internal — must not leak
+    expect(out()).not.toContain('CCWS_NO_ISOLATE');
+    // Tracking var reflects what was actually exported
+    const last = lines.find((l) => l.startsWith('export CCWS_EXPORTED='));
+    expect(last).toBeDefined();
+    expect(last).toContain('CCWS_NAME');
+    expect(last).toContain('ANTHROPIC_BASE_URL');
+    expect(last).toContain('ANTHROPIC_AUTH_TOKEN');
+    expect(last).not.toContain('CLAUDE_CONFIG_DIR');
+    expect(last).not.toContain('CCWS_REAL_HOME');
+  });
+
+  it('CCWS_NO_ISOLATE without =1 is ignored (any other value still triggers isolation)', async () => {
+    writeFileSync(join(tmp, '.ccws/workspaces/work/ccws.env'),
+      'CCWS_NAME=work\nCCWS_NO_ISOLATE=0\n');
+    expect(await runUse(['work'])).toBe(0);
+    expect(out()).toContain('CLAUDE_CONFIG_DIR');
+  });
+
   it('exports ANTHROPIC_* and CLAUDE_* keys verbatim', async () => {
     writeFileSync(join(tmp, '.ccws/workspaces/work/ccws.env'),
       'CCWS_NAME=work\nANTHROPIC_BASE_URL=https://api.anthropic.com\nANTHROPIC_AUTH_TOKEN=sk-123\nCLAUDE_CODE_EFFORT_LEVEL=high\n');

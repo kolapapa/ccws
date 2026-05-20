@@ -8,9 +8,11 @@ import { shQuote } from '../shellQuote.js';
 
 // Keys ccws owns: they describe the workspace itself, not the user's
 // runtime config, so they MUST NOT leak into the activated shell.
-// (CCWS_NAME is set explicitly elsewhere; CCWS_CREATED / CCWS_DESCRIPTION
-// are metadata for `ccws list --verbose`.)
-const INTERNAL_META = new Set(['CCWS_NAME', 'CCWS_CREATED', 'CCWS_DESCRIPTION']);
+// CCWS_NO_ISOLATE is a workspace-level flag (see below) — it controls
+// behavior, not env state, so it's also internal.
+const INTERNAL_META = new Set([
+  'CCWS_NAME', 'CCWS_CREATED', 'CCWS_DESCRIPTION', 'CCWS_NO_ISOLATE',
+]);
 
 // Only valid POSIX identifiers can be exported — anything else would be a
 // shell-injection hazard. (The parser already filters, but defense in depth.)
@@ -38,13 +40,25 @@ export async function runUse(argv: string[]): Promise<number> {
     return 1;
   }
 
-  const exportedKeys: string[] = ['CCWS_NAME', 'CCWS_REAL_HOME', 'CLAUDE_CONFIG_DIR'];
+  const env = parseEnvFile(envFile(name));
+
+  // CCWS_NO_ISOLATE=1 in ccws.env declares this workspace as "bare" — the
+  // user wants its tokens/endpoint but NOT a private CLAUDE_CONFIG_DIR.
+  // Use case: a 'default' workspace that pins your everyday API config but
+  // lets ~/.claude (the global plugin / settings dir) own everything else.
+  // We still export CCWS_NAME so `ccws current` / picker can tell which
+  // workspace is active.
+  const noIsolate = env.CCWS_NO_ISOLATE === '1';
+
+  const exportedKeys: string[] = ['CCWS_NAME'];
   const lines: string[] = [];
   lines.push(`export CCWS_NAME=${shQuote(name)}`);
-  lines.push(`export CCWS_REAL_HOME=${shQuote(process.env.HOME ?? '')}`);
-  lines.push(`export CLAUDE_CONFIG_DIR=${shQuote(ws)}`);
+  if (!noIsolate) {
+    lines.push(`export CCWS_REAL_HOME=${shQuote(process.env.HOME ?? '')}`);
+    lines.push(`export CLAUDE_CONFIG_DIR=${shQuote(ws)}`);
+    exportedKeys.push('CCWS_REAL_HOME', 'CLAUDE_CONFIG_DIR');
+  }
 
-  const env = parseEnvFile(envFile(name));
   for (const [key, value] of Object.entries(env)) {
     if (!isExportable(key)) continue;
     if (key === 'CCWS_BINARY') {
