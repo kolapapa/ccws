@@ -16,7 +16,7 @@ jobs:
           - { triple: bun-linux-arm64,  suffix: linux-arm64 }
           - { triple: bun-linux-x64,    suffix: linux-x64 }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
       - name: Install deps
         run: cd bun && bun install
@@ -40,7 +40,7 @@ jobs:
     permissions:
       contents: write  # required by softprops/action-gh-release to create the Release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
