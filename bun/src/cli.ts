@@ -11,6 +11,7 @@ import { runGlobal } from './commands/global.js';
 import { runRm } from './commands/rm.js';
 import { runSync } from './commands/sync.js';
 import { runAdd } from './commands/add.js';
+import { runDoctor } from './commands/doctor.js';
 
 export const PICKER_SENTINEL = -1;
 
@@ -64,6 +65,7 @@ registerCommand('global', runGlobal);
 registerCommand('rm', runRm);
 registerCommand('sync', runSync);
 registerCommand('add', runAdd);
+registerCommand('doctor', runDoctor);
 
 export async function dispatch(argv: string[]): Promise<number> {
   let noTui = false;
