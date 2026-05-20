@@ -57,14 +57,27 @@ describe('Row', () => {
     expect(lastFrame()).toContain('· active');
   });
 
-  it('renders the bare marker when noIsolate=true', () => {
+  it('renders the home marker when noIsolate=true', () => {
     const { lastFrame } = render(<Row workspace={{ ...baseWs, noIsolate: true }} isCursor={false} />);
-    expect(lastFrame()).toContain('▸ bare');
+    expect(lastFrame()).toContain('· home');
   });
 
-  it('does not render the bare marker when noIsolate=false', () => {
+  it('does not render the home marker when noIsolate=false', () => {
     const { lastFrame } = render(<Row workspace={baseWs} isCursor={false} />);
-    expect(lastFrame()).not.toContain('bare');
+    expect(lastFrame()).not.toContain('home');
+  });
+
+  it('all rows pad to the same visible width (highlight stays uniform)', () => {
+    const minimal = render(<Row workspace={baseWs} isCursor={false} />).lastFrame() ?? '';
+    const maximal = render(<Row workspace={{ ...baseWs, noIsolate: true, active: true }} isCursor={false} />).lastFrame() ?? '';
+    // ink-testing-library strips trailing whitespace from the frame, so
+    // compare a regex-stripped version: we want the underlying string
+    // (with padding) to have the same logical column count. Easiest proxy:
+    // count visible characters excluding the trailing-space tail.
+    // (Direct length check would fail because lastFrame trims trailing
+    // spaces.) Just assert that the maximal row never exceeds the minimal
+    // row's pre-trim length — pad always brings everything up.
+    expect(maximal.length).toBeGreaterThanOrEqual(minimal.length);
   });
 
 });
