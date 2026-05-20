@@ -84,3 +84,58 @@ describe('unsetEnvKey', () => {
     expect(readFileSync(envPath, 'utf8')).toBe('A=1\nB=2\n');
   });
 });
+
+import { afterEach as afterEach2, beforeEach as beforeEach2 } from 'vitest';
+import { writeEnvFile } from '../src/env.js';
+import { statSync } from 'node:fs';
+
+describe('writeEnvFile', () => {
+  let dir: string;
+  beforeEach2(() => { dir = mkdtempSync(join(tmpdir(), 'ccws-env-w-')); });
+  afterEach2(() => { rmSync(dir, { recursive: true, force: true }); });
+
+  it('writes header + CCWS_NAME + CCWS_CREATED', () => {
+    const p = join(dir, 'ccws.env');
+    writeEnvFile(p, { name: 'work' });
+    const text = readFileSync(p, 'utf8');
+    expect(text).toMatch(/^# ccws workspace env file/m);
+    expect(text).toMatch(/^# created by ccws — chmod 600/m);
+    expect(text).toMatch(/^CCWS_NAME=work$/m);
+    expect(text).toMatch(/^CCWS_CREATED=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/m);
+  });
+
+  it('appends optional fields when provided', () => {
+    const p = join(dir, 'ccws.env');
+    writeEnvFile(p, {
+      name: 'work',
+      baseUrl: 'https://api.x',
+      token: 'sk-123',
+      binary: '/opt/claude',
+      description: 'team',
+      proxy: 'http://p:7890',
+    });
+    const text = readFileSync(p, 'utf8');
+    expect(text).toMatch(/^ANTHROPIC_BASE_URL=https:\/\/api\.x$/m);
+    expect(text).toMatch(/^ANTHROPIC_AUTH_TOKEN=sk-123$/m);
+    expect(text).toMatch(/^CCWS_BINARY=\/opt\/claude$/m);
+    expect(text).toMatch(/^CCWS_DESCRIPTION=team$/m);
+    expect(text).toMatch(/^HTTPS_PROXY=http:\/\/p:7890$/m);
+    expect(text).toMatch(/^HTTP_PROXY=http:\/\/p:7890$/m);
+  });
+
+  it('skips optional fields that are empty string', () => {
+    const p = join(dir, 'ccws.env');
+    writeEnvFile(p, { name: 'work', baseUrl: '', token: '', description: '' });
+    const text = readFileSync(p, 'utf8');
+    expect(text).not.toMatch(/ANTHROPIC_BASE_URL/);
+    expect(text).not.toMatch(/ANTHROPIC_AUTH_TOKEN/);
+    expect(text).not.toMatch(/CCWS_DESCRIPTION/);
+  });
+
+  it('chmods file to 600', () => {
+    const p = join(dir, 'ccws.env');
+    writeEnvFile(p, { name: 'work' });
+    const mode = statSync(p).mode & 0o777;
+    expect(mode).toBe(0o600);
+  });
+});

@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 const KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -58,4 +59,37 @@ export function unsetEnvKey(path: string, key: string): void {
     return line.slice(0, eq) !== key;
   });
   writeFileSync(path, kept.join('\n'));
+}
+
+export interface WriteEnvOptions {
+  name: string;
+  baseUrl?: string;
+  token?: string;
+  binary?: string;
+  description?: string;
+  proxy?: string;
+}
+
+function isoNowUTC(): string {
+  return new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+}
+
+export function writeEnvFile(path: string, opts: WriteEnvOptions): void {
+  mkdirSync(dirname(path), { recursive: true });
+  const lines: string[] = [
+    '# ccws workspace env file',
+    '# created by ccws — chmod 600',
+    `CCWS_NAME=${opts.name}`,
+    `CCWS_CREATED=${isoNowUTC()}`,
+  ];
+  if (opts.baseUrl && opts.baseUrl !== '')         lines.push(`ANTHROPIC_BASE_URL=${opts.baseUrl}`);
+  if (opts.token && opts.token !== '')             lines.push(`ANTHROPIC_AUTH_TOKEN=${opts.token}`);
+  if (opts.binary && opts.binary !== '')           lines.push(`CCWS_BINARY=${opts.binary}`);
+  if (opts.description && opts.description !== '') lines.push(`CCWS_DESCRIPTION=${opts.description}`);
+  if (opts.proxy && opts.proxy !== '') {
+    lines.push(`HTTPS_PROXY=${opts.proxy}`);
+    lines.push(`HTTP_PROXY=${opts.proxy}`);
+  }
+  writeFileSync(path, `${lines.join('\n')}\n`);
+  chmodSync(path, 0o600);
 }
