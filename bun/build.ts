@@ -18,7 +18,6 @@ async function main(): Promise<void> {
         'bun', 'build', '--compile',
         '--target', triple,
         '--minify',
-        '--external', 'react-devtools-core',
         'src/index.ts',
         '--outfile', out,
       ],

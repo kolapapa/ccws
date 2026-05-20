@@ -24,7 +24,6 @@ jobs:
         run: |
           cd bun
           bun build --compile --target=${{ matrix.target.triple }} --minify \
-            --external react-devtools-core \
             src/index.ts --outfile dist/ccws-picker-${{ matrix.target.suffix }}
       - name: Upload artifact
         uses: actions/upload-artifact@v4

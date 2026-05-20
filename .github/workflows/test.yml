@@ -60,6 +60,5 @@ jobs:
           suffix="${{ matrix.target }}"
           suffix="${suffix#bun-}"
           bun build --compile --target=${{ matrix.target }} --minify \
-            --external react-devtools-core \
             src/index.ts --outfile dist/ccws-picker-$suffix
           file dist/ccws-picker-$suffix
