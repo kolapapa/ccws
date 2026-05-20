@@ -2,6 +2,8 @@
 
 > Per-shell Claude Code workspace switcher — run different accounts in different terminals, simultaneously, with shared plugin code and isolated auth.
 
+**v1.0** ships as a single compiled binary (TypeScript / Bun) with zero runtime dependencies. No bash, no fzf install, no gum install. Old versions were a bash CLI — those still work but are no longer maintained.
+
 ## What this solves
 
 If you have multiple Claude Code accounts (work, personal, third-party gateway like DeepSeek), you want to:
@@ -21,12 +23,11 @@ If you have multiple Claude Code accounts (work, personal, third-party gateway l
 
 ccws complements cc-switch — different problem, different solution.
 
-## Quick start — from zero to multi-account `claude` in 5 steps
+## Quick start — zero to multi-account `claude` in 5 steps
 
 ```bash
-# 1. Clone + machine install (PATH symlink + shell rc lines + claude wrapper)
-git clone https://github.com/kolapapa/ccws ~/workspace/ccws
-cd ~/workspace/ccws && ./install.sh --with-claude-wrapper
+# 1. Install (one-liner: downloads the binary + wires your shell rc)
+curl -fsSL https://raw.githubusercontent.com/kolapapa/ccws/main/install.sh | bash
 
 # 2. Restart shell (open a new terminal — don't just `source ~/.zshrc`,
 #    because old `claude` shell functions stay in memory)
@@ -55,25 +56,39 @@ Each step modifies a different scope — see [Lifecycle at a glance](#lifecycle-
 curl -fsSL https://raw.githubusercontent.com/kolapapa/ccws/main/install.sh | bash
 ```
 
-This downloads the latest binary for your platform from [GitHub Releases](https://github.com/kolapapa/ccws/releases), drops it at `~/.local/bin/ccws`, wires `ccws hook` into your shell rc, and sets up `~/.ccws/bin/ccws-picker` for the picker.
+What this does:
+1. Detect platform (darwin/linux × arm64/x64) and download the matching binary from [GitHub Releases](https://github.com/kolapapa/ccws/releases)
+2. Place at `~/.local/bin/ccws` + `chmod +x`
+3. Append `eval "$(ccws hook --shell zsh)"` (or bash / fish equivalent) to your shell rc
 
 Verify:
 
 ```bash
-ccws --version       # ccws 0.7.0
+ccws --version       # ccws 1.0.0
 ```
 
 Then run `ccws init`.
+
+### Options
+
+```bash
+./install.sh --with-claude-wrapper    # also enable the opt-in claude() auto-activation wrapper
+./install.sh --no-shell-rc            # don't touch ~/.zshrc / ~/.bashrc / fish config
+./install.sh --version v1.0.0         # pin to a specific release (default: latest)
+```
 
 ### Developer mode
 
 If you've cloned the repo and want to use the source tree:
 
 ```bash
-./install.sh --from-source
+cd bun
+bun install
+bun run build:host
+ln -sfn "$(pwd)/dist/ccws-host" "$HOME/.local/bin/ccws"
 ```
 
-This symlinks `bin/ccws` (bash dispatcher) into `~/.local/bin/ccws`. Use this if you're developing ccws — your edits to `bin/ccws` / `lib/*.sh` take effect immediately.
+This lets you edit `bun/src/**` and re-run `bun run build:host` to test changes locally.
 
 ### Why `--with-claude-wrapper`?
 
@@ -83,13 +98,11 @@ With it: when you run `claude`, the wrapper checks if a workspace is implicitly 
 
 Conflict warning: if you have an existing `claude` shell function (e.g. from a custom `~/.zsh/claude.sh` profile manager), the ccws wrapper will replace it. Comment out the old `source` line first.
 
-Optional dependencies for a nicer TUI: `brew install fzf gum`
-
 ## Lifecycle at a glance
 
 | Step | Command | What it modifies | When you run it |
 |---|---|---|---|
-| **1. Install** | `./install.sh [--with-claude-wrapper]` | `~/.local/bin/ccws` symlink · `~/.zshrc` (hook lines) | Once per machine |
+| **1. Install** | `curl ... | bash` | `~/.local/bin/ccws` · `~/.zshrc` (hook line) | Once per machine |
 | **2. Init** | `ccws init` | `~/.claude/commands/{whoami,switch}.md` · optionally `~/.claude/` itself | Once per user |
 | **3. Add workspace** | `ccws add NAME [...]` | `~/.ccws/workspaces/NAME/` (env + symlinks) | Once per account |
 | **4. Activate (per-shell)** | `ccws use NAME` | Current shell's env vars (`CLAUDE_CONFIG_DIR`, `ANTHROPIC_*`, proxy…) | Each switch |
@@ -101,7 +114,7 @@ Optional dependencies for a nicer TUI: `brew install fzf gum`
 Each step touches a different layer:
 
 ```
-machine-level     ./install.sh           → ~/.local/bin/ + ~/.zshrc
+machine-level     install.sh             → ~/.local/bin/ccws + ~/.zshrc
 user-config       ccws init              → ~/.claude/commands/
 workspace-config  ccws add <name>        → ~/.ccws/workspaces/<name>/
 shell-scope       ccws use <name>        → THIS shell's env
@@ -125,8 +138,6 @@ ccws doesn't auto-create a "default" workspace. Existing `~/.claude/` stays as y
 | Managed alternates | `nvm use 18 && node` | `ccws use work && claude` |
 
 Idempotent: re-running shows status instead of repeating setup. Use `ccws init --reset` to wipe and restart.
-
-If you have no `~/.claude/` yet, `ccws init` offers to create an empty one (so plugins have somewhere to live) or asks you to run `claude` once first.
 
 ## Usage
 
@@ -166,17 +177,17 @@ cd ~/work/projectA
 ccws local company              # writes .ccws-workspace
 
 # Set a user-wide default:
-ccws global personal              # writes ~/.ccws/global
+ccws global personal            # writes ~/.ccws/global
 
 # Inspect resolution:
-ccws which                        # prints: company
-ccws which --explain              # also prints the source (local/global/shell)
+ccws which                      # prints: company
+ccws which --explain            # also prints the source (local/global/shell)
 
 # Activate the resolved workspace in the current shell:
 ccws use $(ccws which)
 ```
 
-For automatic activation (so `claude` in any directory auto-picks up the scope), see the `claude` wrapper section below.
+For automatic activation (so `claude` in any directory auto-picks up the scope), see the `claude` wrapper section above.
 
 ## `claude` wrapper · how auto-activation works
 
@@ -184,7 +195,7 @@ Enabled by `./install.sh --with-claude-wrapper` (or manually via `eval "$(ccws h
 
 ```
 1. CCWS_NAME already set? (you ran `ccws use foo`)   → just exec real claude
-2. .ccws-workspace found in $PWD or any parent?     → spawn subshell with that workspace, exec claude
+2. .ccws-workspace found in $PWD or any parent?      → spawn subshell with that workspace, exec claude
 3. ~/.ccws/global is set?                            → spawn subshell with that workspace, exec claude
 4. Nothing matches                                    → exec real claude (uses ~/.claude/)
 ```
@@ -201,14 +212,32 @@ ccws use company
 claude                            # uses company regardless of $PWD
 ```
 
-To check what would be picked up right now:
+To enable later (without re-running install.sh): edit `~/.zshrc`, uncomment the line `eval "$(ccws hook --claude)"`, restart shell.
+
+## Home workspaces · `CCWS_NO_ISOLATE=1`
+
+A normal ccws workspace owns its own `CLAUDE_CONFIG_DIR` — Claude Code reads plugins, settings, sessions from `~/.ccws/workspaces/<name>/`. Plugin install paths land there too.
+
+Sometimes you want a workspace that **pins your everyday API config** (token / endpoint / proxy / model) but still uses `~/.claude/` for plugins and settings. Common use case: a "default" workspace that's just your daily account, with plugin installs going to the global store so other workspaces see them too.
+
+Add `CCWS_NO_ISOLATE=1` to that workspace's `ccws.env`:
 
 ```bash
-ccws which              # prints the workspace name (scriptable)
-ccws which --explain    # also prints which scope (shell / local:/path / global)
+ccws add default --base-url https://api.anthropic.com --token sk-...
+echo 'CCWS_NO_ISOLATE=1' >> ~/.ccws/workspaces/default/ccws.env
 ```
 
-To enable later (without re-running install.sh): edit `~/.zshrc`, uncomment the line `eval "$(ccws hook --claude)"`, restart shell.
+When activated:
+- `CCWS_NAME=default` is exported (picker / `ccws current` still identify it)
+- **`CLAUDE_CONFIG_DIR` is NOT exported** — Claude Code falls back to `~/.claude/`
+- Token / endpoint / proxy / custom env still ship as usual
+
+In the picker, home workspaces:
+- **Sort first** (above all isolated workspaces)
+- Show a `· home` marker on the row
+- Preview's `CLAUDE_CONFIG_DIR` displays `~/.claude` (clear visual signal that they share the global dir)
+
+Recommended pattern: install plugins from your home workspace (so `installed_plugins.json` records `~/.claude/plugins/...` paths), then use other (isolated) workspaces for per-account work — they read those plugins through their own `plugins/` symlink.
 
 ## Proxy per workspace
 
@@ -237,11 +266,9 @@ NO_PROXY=localhost,127.0.0.1,.internal
 EOF
 ```
 
-ccws exports all of `HTTPS_PROXY` / `HTTP_PROXY` / `ALL_PROXY` / `NO_PROXY` (plus their lowercase forms) from `ccws.env`.
-
 ## Custom env vars per workspace
 
-`ccws use` exports every `ANTHROPIC_*` and `CLAUDE_*` key it finds in the workspace's `ccws.env` file. To add custom vars (model routing, effort level, anything Claude Code reads), append them to the file:
+`ccws use` exports **every** key in the workspace's `ccws.env` file (except a few internal metadata keys). Add anything Claude Code or its plugins read — model routing, effort level, attribution headers, OpenAI-compat keys for gateways, etc.:
 
 ```bash
 ccws add deepseek --base-url https://api.deepseek.com/anthropic --token sk-xxx
@@ -253,6 +280,7 @@ ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-v4-pro[1m]
 ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash
 CLAUDE_CODE_SUBAGENT_MODEL=deepseek-v4-flash
 CLAUDE_CODE_EFFORT_LEVEL=max
+CLAUDE_CODE_ATTRIBUTION_HEADER=0
 EOF
 
 ccws use deepseek
@@ -262,46 +290,42 @@ claude
 
 Switching workspaces (`ccws use <other>`) automatically unsets the previous workspace's vars first — no stale `ANTHROPIC_MODEL` leaking across accounts. The `CCWS_EXPORTED` variable tracks what's currently active.
 
-Internal metadata keys (`CCWS_NAME`, `CCWS_CREATED`, `CCWS_DESCRIPTION`) are NOT exported into the claude process — only `ANTHROPIC_*` / `CLAUDE_*` / `CCWS_BINARY` / `CCWS_NAME` (re-set) / `CCWS_REAL_HOME` / `CLAUDE_CONFIG_DIR`.
+**Hidden keys:** `CCWS_NAME`, `CCWS_CREATED`, `CCWS_DESCRIPTION`, `CCWS_NO_ISOLATE` are internal ccws metadata — they're not exported into the claude process (CCWS_NAME is re-set explicitly so picker / `ccws current` can identify the active workspace). Any `*_TOKEN` / `*_AUTH` / `*_AUTH_TOKEN` / `*_KEY` key is **masked as `***`** in the preview pane (the value still ships to claude, just doesn't display on screen).
 
 ## What it looks like
 
 ### Interactive picker (`ccws` with no args)
 
-Runs gum + fzf for a polished picker with a live preview pane:
+The picker is a React/Ink TUI built into the binary — no fzf / gum install needed:
 
 ```
-  ╔══════════════════════════════════════════════════════════════╗
-  ║  ccws · Claude Code WorkSpace                                ║
-  ╚══════════════════════════════════════════════════════════════╝
+   ██████╗ ██████╗██╗    ██╗███████╗       ← 6-row Catppuccin gradient logo
+  ██╔════╝██╔════╝██║    ██║██╔════╝          (mauve → pink → lavender →
+  ██║     ██║     ██║ █╗ ██║███████╗           sky → green → yellow)
+  ██║     ██║     ██║███╗██║╚════██║
+  ╚██████╗╚██████╗╚███╔███╔╝███████║
+   ╚═════╝ ╚═════╝ ╚══╝╚══╝ ╚══════╝
+  ────────────────────────────────
+  ↑↓ navigate    type to filter    ↵ activate    Tab toggle yolo    esc cancel
 
-  › │ work       │ anthropic                        │ Workspace: work
-    │ personal   │ anthropic                        │ Path:      ~/.ccws/workspaces/work
-    │ deepseek   │ api.deepseek.com/anthropic       │
-    │ company  │ anthropic                        │ --- ccws.env ---
-                                                    │ CCWS_NAME=work
-                                                    │ CCWS_CREATED=2026-05-17T12:30:00Z
-                                                    │ ANTHROPIC_BASE_URL=https://...
-                                                    │ ANTHROPIC_AUTH_TOKEN=***
-                                                    │ Sessions: 47
+  › _                                                3/3
 
-  ↑/↓ navigate · Enter activate · ESC cancel
+❯ default       aigwasia-shasp.tidu8.cn   ● proxy   ! yolo   · home
+  astratech     anthropic                 ● proxy   · safe
+  deepseek      deepseek-gw               ○ direct  · safe
+  ────────────────────────────────
+  CLAUDE_CONFIG_DIR   ~/.claude
+  ANTHROPIC_BASE_URL  https://aigwasia-shasp.tidu8.cn
+  ANTHROPIC_AUTH_TOKEN ***
 ```
+
+- ↑↓ wraps at the edges · type to fuzzy-filter · `Tab` toggles `CCWS_DANGEROUS` on the cursor row (the `! yolo` marker)
+- Selected row gets a full-line inverse highlight (Catppuccin dim background, fg-colored text)
+- Home workspaces (`CCWS_NO_ISOLATE=1`) sort first and show `· home`
+- The active workspace (the one currently `ccws use`d in this shell) is bold-green with a `· active` suffix
+- Preview pane at the bottom shows `CLAUDE_CONFIG_DIR` + every key from the workspace's `ccws.env` (alphabetical, secrets masked)
 
 After selecting, ccws asks `Launch claude now? [Y/n]` — press Enter and you're inside Claude with the chosen workspace active.
-
-If `fzf` / `gum` aren't installed, ccws falls back to a pure-bash numbered menu (no extra deps required):
-
-```
-  ccws · Claude Code WorkSpace
-
-    * 1) work                 (anthropic)
-      2) personal             (anthropic)
-      3) deepseek             (api.deepseek.com/anthropic)
-      4) company            (anthropic)
-
-  Enter number (1-4) or q to quit: _
-```
 
 ### Multi-shell concurrent — the killer feature
 
@@ -331,7 +355,7 @@ $ ccws list --verbose
 * work        endpoint=anthropic                          created=2026-05-17T12:30:00Z
   personal    endpoint=anthropic                          created=2026-05-17T12:45:15Z
   deepseek    endpoint=https://api.deepseek.com/anthropic created=2026-05-17T13:02:33Z
-  company   endpoint=anthropic                          created=2026-05-17T13:18:07Z
+  company     endpoint=anthropic                          created=2026-05-17T13:18:07Z
 ```
 
 `*` marks the workspace currently active in **this** shell.
@@ -347,11 +371,9 @@ ccws doctor — environment health checks
   ✓ workspace 'work' symlinks ok
   ✓ workspace 'personal' symlinks ok
   ✓ workspace 'deepseek' symlinks ok
-  ✓ workspace 'company' symlinks ok
   ✓ workspace 'work' env valid
   ✓ workspace 'personal' env valid
   ✓ workspace 'deepseek' env valid
-  ✓ workspace 'company' env valid
   ✓ claude binary on PATH
   ✓ shell rc has ccws init
 
@@ -362,19 +384,22 @@ Color-coded: `✓` green ok · `!` yellow warning · `✗` red error.
 
 ## Architecture
 
-- Each workspace is a directory at `~/.ccws/workspaces/<name>/` and serves as `CLAUDE_CONFIG_DIR`
+- ccws is a single compiled binary (~60 MB darwin / ~95 MB linux), built from TypeScript with Bun's `bun build --compile`
+- Each workspace is a directory at `~/.ccws/workspaces/<name>/` and serves as `CLAUDE_CONFIG_DIR` (unless `CCWS_NO_ISOLATE=1`)
 - A symlink farm shares plugins, skills, settings, MCP, hooks, etc. from `~/.claude/` into each workspace
-- `ccws use <name>` is a shell function that exports `CLAUDE_CONFIG_DIR` + endpoint vars in the current shell
+- `ccws use <name>` writes `export KEY=value` lines to stdout — the shell wrapper (`eval "$(ccws hook --shell zsh)"`) eval's them, mutating the current shell
+- The picker is built with Ink (React-on-terminal) — selected row cursor sticks across Tab toggles, no fzf-style line-content remapping
 - Multiple shells can each have their own active workspace — no shared state mutation
 
 ## Commands
 
 ```
-ccws                       Open interactive TUI picker (Catppuccin Mocha)
+ccws                       Open interactive TUI picker (Ink / Catppuccin)
 ccws init                  First-time setup wizard
-ccws add [<name> [...]]    Create a workspace (interactive if no args)
+ccws add [<name>]          Create a workspace (interactive if no args)
                            [--base-url URL] [--token TOK] [--binary PATH]
                            [--proxy URL] [--description DESC]
+                           [--non-interactive]
 ccws use <name>            Activate workspace in current shell
 ccws unset                 Deactivate workspace in current shell
 ccws local <name>          Set .ccws-workspace in $PWD (pyenv-style)
@@ -389,6 +414,7 @@ ccws current [--path]      Show currently active workspace
 ccws rm <name> [-f]        Remove workspace
 ccws doctor                Run health checks
 ccws sync [<name>]         Re-link symlinks for one or all workspaces
+ccws --version             Print ccws 1.0.0
 ccws --no-tui              Bypass TUI when called without args
 ccws --help                Show this help
 ```
