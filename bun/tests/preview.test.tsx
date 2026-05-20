@@ -55,4 +55,48 @@ describe('Preview', () => {
     const { lastFrame } = render(<Preview workspace={ws} />);
     expect(lastFrame()).toContain('(ccws.env empty or malformed)');
   });
+
+  it('shows user-defined env keys not in PREVIEW_KEYS, sorted alphabetically', () => {
+    const ws = makeWs({
+      ANTHROPIC_BASE_URL: 'https://api.x',
+      MY_FLAG: 'on',
+      AAA_FIRST: 'top',
+    });
+    const { lastFrame } = render(<Preview workspace={ws} />);
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('aaa_first');
+    expect(frame).toContain('top');
+    expect(frame).toContain('my_flag');
+    expect(frame).toContain('on');
+    // Custom keys appear after the known endpoint row
+    const endpointIdx = frame.indexOf('endpoint');
+    const aaaIdx = frame.indexOf('aaa_first');
+    const myIdx = frame.indexOf('my_flag');
+    expect(endpointIdx).toBeLessThan(aaaIdx);
+    expect(aaaIdx).toBeLessThan(myIdx);
+  });
+
+  it('hides internal metadata keys (CCWS_NAME / CCWS_DESCRIPTION)', () => {
+    const ws = makeWs({
+      CCWS_NAME: 'work',
+      CCWS_DESCRIPTION: 'team',
+      MY_FLAG: 'on',
+    });
+    const { lastFrame } = render(<Preview workspace={ws} />);
+    const frame = lastFrame() ?? '';
+    // CCWS_DESCRIPTION IS in PREVIEW_KEYS as "description" — that one shows.
+    expect(frame).toContain('description');
+    expect(frame).toContain('team');
+    // CCWS_NAME itself never appears as a row.
+    expect(frame).not.toMatch(/^ccws_name/m);
+    expect(frame).toContain('my_flag');
+  });
+
+  it('masks user-defined *_TOKEN keys too', () => {
+    const ws = makeWs({ OPENAI_API_TOKEN: 'sk-leak' });
+    const { lastFrame } = render(<Preview workspace={ws} />);
+    expect(lastFrame()).toContain('openai_api_token');
+    expect(lastFrame()).toContain('***');
+    expect(lastFrame()).not.toContain('sk-leak');
+  });
 });
