@@ -188,15 +188,28 @@ ccws_tui_fzf_pick() {
     #   alt-k/j is a vim-flavored alternative for keyboard-only users. We
     #   avoid ctrl-u/ctrl-d because those clash with fzf's defaults
     #   (clear-query / half-page-down).
-    # - --bind 'y:track-current+execute-silent(...)+reload(...)': flips
-    #   the current row's CCWS_DANGEROUS flag (persistent in ccws.env),
-    #   then re-emits the list so the column updates immediately, while
-    #   keeping the cursor on the same workspace. track-current asks fzf
-    #   to remember the current item; on the next reload fzf re-snaps the
-    #   cursor to where that item ended up in the new list (auto-released
-    #   when focus changes). Without track-current the reload resets
-    #   cursor to row 0 — the toggle feels jumpy. pos({n}) was tried but
-    #   fzf's pos() doesn't expand placeholders.
+    # - --bind 'y:transform(...)': flips the current row's CCWS_DANGEROUS
+    #   flag (persistent in ccws.env) and re-emits the list with the
+    #   cursor preserved on the toggled row.
+    #
+    #   Why transform and not the simpler execute-silent+reload? Because
+    #   fzf's reload action resets the cursor to row 0. track-current was
+    #   the obvious next try, but it re-snaps by exact LINE CONTENT match
+    #   — which fails here because toggling literally changes the line
+    #   (the dangerous column flips '· safe' ↔ '⚡ yolo'). pos({n}) was
+    #   tried after that — but fzf's pos() doesn't expand {n} placeholders,
+    #   only literal integers.
+    #
+    #   transform fixes all of this: the inner shell captures {n} at
+    #   trigger time, runs the toggle, then prints an action chain
+    #   `reload(...)+pos(N+1)` (pos is 1-indexed per fzf docs: `first`
+    #   ≡ `pos(1)`) that fzf executes. Position is computed externally,
+    #   so it doesn't depend on fzf's matching heuristics.
+    #
+    #   Search conflict: lowercase y is still consumed by this bind, so
+    #   users cannot include the letter 'y' in a search query. Workspace
+    #   names with 'y' substring filters can't be reached via typing 'y'.
+    #   If that bites in practice, switch to Tab or Alt-y here.
     #
     #   Search conflict: lowercase y is consumed by this bind, so users
     #   cannot include the letter 'y' in a search query. Workspace names
@@ -217,7 +230,7 @@ ccws_tui_fzf_pick() {
             --pointer="❯" \
             ${start_bind[@]+"${start_bind[@]}"} \
             --bind='pgup:preview-up,pgdn:preview-down,alt-k:preview-up,alt-j:preview-down' \
-            --bind="y:track-current+execute-silent($CCWS_DIR/bin/ccws _toggle-danger {})+reload($CCWS_DIR/bin/ccws _tui-format)" \
+            --bind="y:transform(_pos=\$(({n}+1)); $CCWS_DIR/bin/ccws _toggle-danger {} >/dev/null 2>&1; printf 'reload($CCWS_DIR/bin/ccws _tui-format)+pos(%s)' \$_pos)" \
             --preview="$preview_cmd" \
             --preview-window='down,55%,wrap,border-top' \
             --preview-label='' \
