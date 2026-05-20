@@ -188,12 +188,21 @@ ccws_tui_fzf_pick() {
     #   alt-k/j is a vim-flavored alternative for keyboard-only users. We
     #   avoid ctrl-u/ctrl-d because those clash with fzf's defaults
     #   (clear-query / half-page-down).
-    # - --bind 'y:execute-silent(...)+reload(...)': flips the current row's
-    #   CCWS_DANGEROUS flag (persistent in ccws.env) then re-emits the list
-    #   so the column updates immediately. Lowercase y consumes the
-    #   keystroke for input-filter, but workspace names rarely contain a
-    #   meaningful 'y' prefix — and the dangerous toggle is the most useful
-    #   in-picker affordance we have to surface.
+    # - --bind 'y:execute-silent(...)+reload(...)+pos({n})': flips the
+    #   current row's CCWS_DANGEROUS flag (persistent in ccws.env), then
+    #   re-emits the list so the column updates immediately, then
+    #   restores the cursor to the row that was just toggled. Without
+    #   the trailing pos({n}), fzf's default reload behavior resets the
+    #   cursor to row 0 — making the toggle feel jumpy. {n} is fzf's
+    #   placeholder for the current item's 0-indexed position; it is
+    #   evaluated at trigger time so it points to the row the user just
+    #   yolo-flipped (the list keeps the same names at the same indices
+    #   across reload, only the dangerous column changes).
+    #
+    #   Search conflict: lowercase y is consumed by this bind, so users
+    #   cannot include the letter 'y' in a search query. Workspace names
+    #   with 'y' substring filters can't be reached via typing 'y'. If
+    #   that bites in practice, switch to Tab or Alt-y here.
     local selected
     selected=$(
         printf '%s\n' "$formatted" | SHELL=/bin/sh fzf \
@@ -209,7 +218,7 @@ ccws_tui_fzf_pick() {
             --pointer="❯" \
             ${start_bind[@]+"${start_bind[@]}"} \
             --bind='pgup:preview-up,pgdn:preview-down,alt-k:preview-up,alt-j:preview-down' \
-            --bind="y:execute-silent($CCWS_DIR/bin/ccws _toggle-danger {})+reload($CCWS_DIR/bin/ccws _tui-format)" \
+            --bind="y:execute-silent($CCWS_DIR/bin/ccws _toggle-danger {})+reload($CCWS_DIR/bin/ccws _tui-format)+pos({n})" \
             --preview="$preview_cmd" \
             --preview-window='down,55%,wrap,border-top' \
             --preview-label='' \
