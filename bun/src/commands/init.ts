@@ -1,9 +1,10 @@
-import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ccwsRoot, realClaudeDir, workspacesDir } from '../paths.js';
-import { logError, logInfo, logOk, logWarn } from '../logger.js';
+import { logError, logInfo, logOk } from '../logger.js';
 import { promptLine, promptHidden, promptYn } from '../prompt.js';
 import { runAdd } from './add.js';
+import { SLASH_COMMANDS } from '../embedded.js';
 
 const BANNER = `
 ╔══════════════════════════════════════════════╗
@@ -18,22 +19,6 @@ Usage: ccws init [--reset]
 
   --reset   Remove ~/.ccws/ and start fresh (asks confirmation)
 `;
-
-function findShareCommandsDir(): string | null {
-  if (process.env.CCWS_DIR && process.env.CCWS_DIR !== '') {
-    const p = join(process.env.CCWS_DIR, 'share/commands');
-    if (existsSync(p)) return p;
-  }
-  let d = dirname(process.execPath);
-  for (let i = 0; i < 5; i++) {
-    const candidate = join(d, 'share/commands');
-    if (existsSync(candidate)) return candidate;
-    const parent = dirname(d);
-    if (parent === d) break;
-    d = parent;
-  }
-  return null;
-}
 
 export async function runInit(argv: string[]): Promise<number> {
   let reset = false;
@@ -101,18 +86,12 @@ export async function runInit(argv: string[]): Promise<number> {
   }
 
   process.stderr.write('\n[2/3] Installing slash commands...\n');
-  const cmds = findShareCommandsDir();
-  if (cmds && existsSync(cmds)) {
-    mkdirSync(join(claude, 'commands'), { recursive: true });
-    for (const f of readdirSync(cmds)) {
-      if (!f.endsWith('.md')) continue;
-      const dst = join(claude, 'commands', f);
-      if (!existsSync(dst)) copyFileSync(join(cmds, f), dst);
-    }
-    logOk(`installed slash commands to ${claude}/commands/`);
-  } else {
-    logWarn('could not install slash commands (share/commands not found)');
+  mkdirSync(join(claude, 'commands'), { recursive: true });
+  for (const [name, content] of Object.entries(SLASH_COMMANDS)) {
+    const dst = join(claude, 'commands', name);
+    if (!existsSync(dst)) writeFileSync(dst, content);
   }
+  logOk(`installed slash commands to ${claude}/commands/`);
 
   process.stderr.write('\n[3/3] Add your first workspace?\n');
   process.stderr.write('      (for a different account or endpoint — leave blank to skip)\n\n');

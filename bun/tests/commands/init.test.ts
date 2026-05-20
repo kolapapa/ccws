@@ -16,10 +16,6 @@ describe('runInit', () => {
     process.env.HOME = tmp;
     process.env.CCWS_ROOT = join(tmp, '.ccws');
     process.env.CCWS_REAL_CLAUDE_DIR = join(tmp, '.claude');
-    process.env.CCWS_DIR = join(tmp, 'src');
-    mkdirSync(join(tmp, 'src/share/commands'), { recursive: true });
-    writeFileSync(join(tmp, 'src/share/commands/whoami.md'), '# whoami');
-    writeFileSync(join(tmp, 'src/share/commands/switch.md'), '# switch');
     errs = [];
     errSpy = vi.spyOn(process.stderr, 'write').mockImplementation((c: unknown) => { errs.push(String(c)); return true; });
   });
