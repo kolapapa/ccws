@@ -1,0 +1,65 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  bats:
+    name: bats (bash)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install bats
+        run: |
+          if [[ "${{ runner.os }}" == "macOS" ]]; then
+            brew install bats-core
+          else
+            sudo apt-get update && sudo apt-get install -y bats
+          fi
+      - name: Run bats
+        run: bats tests/integration/
+
+  vitest:
+    name: vitest (bun)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install deps
+        run: cd bun && bun install
+      - name: Typecheck
+        run: cd bun && bun run typecheck
+      - name: Run vitest
+        run: cd bun && bun run test
+
+  build-verify:
+    name: build-verify (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - bun-darwin-arm64
+          - bun-darwin-x64
+          - bun-linux-arm64
+          - bun-linux-x64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install deps
+        run: cd bun && bun install
+      - name: Cross-compile
+        run: |
+          cd bun
+          suffix="${{ matrix.target }}"
+          suffix="${suffix#bun-}"
+          bun build --compile --target=${{ matrix.target }} --minify \
+            --external react-devtools-core \
+            src/index.ts --outfile dist/ccws-picker-$suffix
+          file dist/ccws-picker-$suffix
