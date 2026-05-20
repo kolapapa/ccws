@@ -22,13 +22,16 @@ while [[ $# -gt 0 ]]; do
             cat <<'EOF'
 ccws installer
 
-Usage: ./install.sh [--no-shell-rc] [--with-claude-wrapper] [--from-source] [--version vX.Y.Z]
+Usage: ./install.sh [--no-shell-rc] [--with-claude-wrapper] [--version vX.Y.Z]
 
   --no-shell-rc          Don't touch ~/.bashrc / ~/.zshrc / fish config
   --with-claude-wrapper  Also enable the opt-in claude() wrapper
-  --from-source          Symlink bash bin/ccws instead of downloading binary
-                         (developer mode — requires this repo cloned)
   --version vX.Y.Z       Pin to a specific release (default: latest)
+
+Developer mode: --from-source is no longer supported (v1.0 removed bash).
+Build from source with:
+    cd bun && bun install && bun run build:host
+    ln -sfn "\$(pwd)/dist/ccws-host" "\$HOME/.local/bin/ccws"
 
 After install, run:  ccws init
 EOF
@@ -57,32 +60,34 @@ echo "ccws installer"
 mkdir -p "$INSTALL_BIN"
 
 if [[ "$from_source" -eq 1 ]]; then
-    CCWS_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    ln -sfn "$CCWS_SRC/bin/ccws" "$INSTALL_BIN/ccws"
-    echo "✓ Linked source bin/ccws to $INSTALL_BIN/ccws"
-else
-    plat=$(detect_platform)
-    if [[ -z "$version" ]]; then
-        version=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | sed -n 's/.*"tag_name": *"\(v[^"]*\)".*/\1/p')
-        if [[ -z "$version" ]]; then
-            echo "Could not detect latest release tag — pass --version vX.Y.Z" >&2
-            exit 1
-        fi
-    fi
-
-    url_ccws="https://github.com/$REPO/releases/download/$version/ccws-$plat"
-    url_picker="https://github.com/$REPO/releases/download/$version/ccws-picker-$plat"
-
-    echo "  Downloading $version ($plat)..."
-    curl -fsSL "$url_ccws" -o "$INSTALL_BIN/ccws"
-    chmod +x "$INSTALL_BIN/ccws"
-    echo "  ✓ ccws → $INSTALL_BIN/ccws"
-
-    mkdir -p "$PICKER_BIN_DIR"
-    curl -fsSL "$url_picker" -o "$PICKER_BIN_DIR/ccws-picker"
-    chmod +x "$PICKER_BIN_DIR/ccws-picker"
-    echo "  ✓ ccws-picker → $PICKER_BIN_DIR/ccws-picker"
+    echo "error: --from-source is no longer supported (bash entry point removed in v1.0)" >&2
+    echo "Build from source instead:" >&2
+    echo "  cd bun && bun install && bun run build:host" >&2
+    echo "  ln -sfn \$(pwd)/dist/ccws-host \$HOME/.local/bin/ccws" >&2
+    exit 2
 fi
+
+plat=$(detect_platform)
+if [[ -z "$version" ]]; then
+    version=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | sed -n 's/.*"tag_name": *"\(v[^"]*\)".*/\1/p')
+    if [[ -z "$version" ]]; then
+        echo "Could not detect latest release tag — pass --version vX.Y.Z" >&2
+        exit 1
+    fi
+fi
+
+url_ccws="https://github.com/$REPO/releases/download/$version/ccws-$plat"
+url_picker="https://github.com/$REPO/releases/download/$version/ccws-picker-$plat"
+
+echo "  Downloading $version ($plat)..."
+curl -fsSL "$url_ccws" -o "$INSTALL_BIN/ccws"
+chmod +x "$INSTALL_BIN/ccws"
+echo "  ✓ ccws → $INSTALL_BIN/ccws"
+
+mkdir -p "$PICKER_BIN_DIR"
+curl -fsSL "$url_picker" -o "$PICKER_BIN_DIR/ccws-picker"
+chmod +x "$PICKER_BIN_DIR/ccws-picker"
+echo "  ✓ ccws-picker → $PICKER_BIN_DIR/ccws-picker"
 
 if [[ "$write_shell_rc" -eq 1 ]]; then
     echo ""
