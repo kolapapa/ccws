@@ -1,26 +1,34 @@
 #!/usr/bin/env bash
-# ccws installer — wires up PATH + shell rc only.
-# Use `ccws init` after install for workspace setup.
+# ccws installer — downloads the compiled binary from GitHub Releases.
+# Use --from-source to link the bash dispatcher instead (developer mode).
 set -euo pipefail
 
-CCWS_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="kolapapa/ccws"
 INSTALL_BIN="$HOME/.local/bin"
+PICKER_BIN_DIR="$HOME/.ccws/bin"
 
 write_shell_rc=1
 enable_claude_wrapper=0
+from_source=0
+version=""
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --no-shell-rc) write_shell_rc=0; shift ;;
+        --no-shell-rc)         write_shell_rc=0; shift ;;
         --with-claude-wrapper) enable_claude_wrapper=1; shift ;;
-        --help|-h) cat <<'EOF'
+        --from-source)         from_source=1; shift ;;
+        --version)             version="$2"; shift 2 ;;
+        --help|-h)
+            cat <<'EOF'
 ccws installer
 
-Usage: ./install.sh [--no-shell-rc] [--with-claude-wrapper]
+Usage: ./install.sh [--no-shell-rc] [--with-claude-wrapper] [--from-source] [--version vX.Y.Z]
 
   --no-shell-rc          Don't touch ~/.bashrc / ~/.zshrc / fish config
-  --with-claude-wrapper  Also enable the opt-in claude() wrapper that
-                         auto-resolves .ccws-workspace files (pyenv-style).
-                         Replaces any external 'claude' shell function.
+  --with-claude-wrapper  Also enable the opt-in claude() wrapper
+  --from-source          Symlink bash bin/ccws instead of downloading binary
+                         (developer mode — requires this repo cloned)
+  --version vX.Y.Z       Pin to a specific release (default: latest)
 
 After install, run:  ccws init
 EOF
@@ -29,50 +37,66 @@ EOF
     esac
 done
 
-echo "ccws installer"
-echo "  source: $CCWS_SRC"
-echo ""
+detect_platform() {
+    local os arch
+    case "$(uname -s)" in
+        Darwin) os="darwin" ;;
+        Linux)  os="linux" ;;
+        *) echo "unsupported OS: $(uname -s)" >&2; exit 1 ;;
+    esac
+    case "$(uname -m)" in
+        arm64|aarch64) arch="arm64" ;;
+        x86_64|amd64)  arch="x64" ;;
+        *) echo "unsupported arch: $(uname -m)" >&2; exit 1 ;;
+    esac
+    printf '%s-%s' "$os" "$arch"
+}
 
-# Symlink binary so users can call `ccws` directly.
-if [[ -d "$INSTALL_BIN" ]]; then
+echo "ccws installer"
+
+mkdir -p "$INSTALL_BIN"
+
+if [[ "$from_source" -eq 1 ]]; then
+    CCWS_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     ln -sfn "$CCWS_SRC/bin/ccws" "$INSTALL_BIN/ccws"
-    echo "✓ Linked ccws to $INSTALL_BIN/ccws"
+    echo "✓ Linked source bin/ccws to $INSTALL_BIN/ccws"
 else
-    echo "  (skipped — $INSTALL_BIN not present; you can call $CCWS_SRC/bin/ccws directly)"
+    plat=$(detect_platform)
+    if [[ -z "$version" ]]; then
+        version=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | sed -n 's/.*"tag_name": *"\(v[^"]*\)".*/\1/p')
+        if [[ -z "$version" ]]; then
+            echo "Could not detect latest release tag — pass --version vX.Y.Z" >&2
+            exit 1
+        fi
+    fi
+
+    url_ccws="https://github.com/$REPO/releases/download/$version/ccws-$plat"
+    url_picker="https://github.com/$REPO/releases/download/$version/ccws-picker-$plat"
+
+    echo "  Downloading $version ($plat)..."
+    curl -fsSL "$url_ccws" -o "$INSTALL_BIN/ccws"
+    chmod +x "$INSTALL_BIN/ccws"
+    echo "  ✓ ccws → $INSTALL_BIN/ccws"
+
+    mkdir -p "$PICKER_BIN_DIR"
+    curl -fsSL "$url_picker" -o "$PICKER_BIN_DIR/ccws-picker"
+    chmod +x "$PICKER_BIN_DIR/ccws-picker"
+    echo "  ✓ ccws-picker → $PICKER_BIN_DIR/ccws-picker"
 fi
 
-# Detect optional deps for TUI
-echo ""
-echo "Optional TUI deps:"
-for tool in fzf gum; do
-    if command -v "$tool" >/dev/null 2>&1; then
-        echo "  ✓ $tool found"
-    else
-        echo "  ! $tool not installed — consider: brew install $tool"
-    fi
-done
-
-# Shell rc wiring — write 'ccws hook' eval lines (v0.5.0+).
-# Old direct 'source .../share/init.sh' lines are detected and left alone
-# (we don't silently rewrite; user can swap manually).
 if [[ "$write_shell_rc" -eq 1 ]]; then
     echo ""
     for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
         [[ -f "$rc" ]] || continue
         if grep -qE "ccws hook|ccws/share/init" "$rc"; then
-            if grep -q "ccws/share/init" "$rc" && ! grep -q "ccws hook" "$rc"; then
-                echo "! $rc has legacy 'source .../share/init.sh' line"
-                echo "  (still works — to upgrade, replace with: eval \"\$(ccws hook --shell ${rc##*/.}|sed s/rc//) \")"
-            else
-                echo "  (skipped — $rc already has ccws hook)"
-            fi
+            echo "  (skipped — $rc already wired)"
             continue
         fi
-        local_shell="${rc##*/.}"; local_shell="${local_shell%rc}"
+        shell_name="${rc##*/.}"; shell_name="${shell_name%rc}"
         {
             echo ""
             echo "# ccws — Claude Code WorkSpace"
-            echo "eval \"\$(ccws hook --shell $local_shell)\""
+            echo "eval \"\$(ccws hook --shell $shell_name)\""
             if [[ "$enable_claude_wrapper" -eq 1 ]]; then
                 echo "eval \"\$(ccws hook --claude)\""
             else
@@ -83,23 +107,19 @@ if [[ "$write_shell_rc" -eq 1 ]]; then
         echo "✓ Added ccws hook to $rc"
     done
     fish_conf="$HOME/.config/fish/config.fish"
-    if [[ -f "$fish_conf" ]]; then
-        if grep -qE "ccws hook|ccws/share/init" "$fish_conf"; then
-            echo "  (skipped — $fish_conf already wired)"
-        else
-            {
-                echo ""
-                echo "# ccws — Claude Code WorkSpace"
-                echo "ccws hook --shell fish | source"
-                if [[ "$enable_claude_wrapper" -eq 1 ]]; then
-                    echo "ccws hook --claude | source"
-                else
-                    echo "# Uncomment to let 'claude' auto-resolve scope:"
-                    echo "# ccws hook --claude | source"
-                fi
-            } >> "$fish_conf"
-            echo "✓ Added ccws hook to $fish_conf"
-        fi
+    if [[ -f "$fish_conf" ]] && ! grep -qE "ccws hook|ccws/share/init" "$fish_conf"; then
+        {
+            echo ""
+            echo "# ccws — Claude Code WorkSpace"
+            echo "ccws hook --shell fish | source"
+            if [[ "$enable_claude_wrapper" -eq 1 ]]; then
+                echo "ccws hook --claude | source"
+            else
+                echo "# Uncomment to let 'claude' auto-resolve scope:"
+                echo "# ccws hook --claude | source"
+            fi
+        } >> "$fish_conf"
+        echo "✓ Added ccws hook to $fish_conf"
     fi
 fi
 
