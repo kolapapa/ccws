@@ -52,26 +52,28 @@ Each step modifies a different scope — see [Lifecycle at a glance](#lifecycle-
 ## Install
 
 ```bash
-./install.sh                       # bare install
-./install.sh --with-claude-wrapper # also enable opt-in claude() wrapper (recommended)
-./install.sh --no-shell-rc         # PATH only, don't touch ~/.zshrc / ~/.bashrc
-./install.sh --help
+curl -fsSL https://raw.githubusercontent.com/kolapapa/ccws/main/install.sh | bash
 ```
 
-What `install.sh` does:
+This downloads the latest binary for your platform from [GitHub Releases](https://github.com/kolapapa/ccws/releases), drops it at `~/.local/bin/ccws`, wires `ccws hook` into your shell rc, and sets up `~/.ccws/bin/ccws-picker` for the picker.
 
-1. Symlinks `bin/ccws` → `~/.local/bin/ccws` (so `ccws` is on PATH)
-2. Appends to `~/.zshrc` / `~/.bashrc` / `~/.config/fish/config.fish`:
-   ```bash
-   # ccws — Claude Code WorkSpace
-   eval "$(ccws hook --shell zsh)"
-   # Uncomment to let 'claude' auto-resolve .ccws-workspace / global:
-   # eval "$(ccws hook --claude)"
-   ```
-3. With `--with-claude-wrapper`, the second line is **uncommented** so the `claude` wrapper is active out of the box
-4. Detects `fzf` / `gum` and prints install hints if missing (optional — TUI falls back to pure bash)
+Verify:
 
-The shell rc append is **idempotent** — re-running `install.sh` won't add duplicate lines. If you previously had a legacy `source .../share/init.sh` line (from ccws ≤ v0.4.0), install.sh leaves it alone and warns; you can replace it manually with the modern `ccws hook` form.
+```bash
+ccws --version       # ccws 0.7.0
+```
+
+Then run `ccws init`.
+
+### Developer mode
+
+If you've cloned the repo and want to use the source tree:
+
+```bash
+./install.sh --from-source
+```
+
+This symlinks `bin/ccws` (bash dispatcher) into `~/.local/bin/ccws`. Use this if you're developing ccws — your edits to `bin/ccws` / `lib/*.sh` take effect immediately.
 
 ### Why `--with-claude-wrapper`?
 
