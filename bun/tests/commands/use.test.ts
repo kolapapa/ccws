@@ -87,12 +87,13 @@ describe('runUse', () => {
     expect(out()).toContain(`export http_proxy=`);
   });
 
-  it('skips keys not on the allowlist', async () => {
+  it('exports arbitrary user-defined keys verbatim (no allowlist)', async () => {
     writeFileSync(join(tmp, '.ccws/workspaces/work/ccws.env'),
-      'CCWS_NAME=work\nRANDOM_KEY=ignored\nFOO_BAR=also-ignored\n');
+      'CCWS_NAME=work\nRANDOM_KEY=ok\nFOO_BAR=yes\nclaude_code_attribution_header=0\n');
     expect(await runUse(['work'])).toBe(0);
-    expect(out()).not.toContain(`RANDOM_KEY`);
-    expect(out()).not.toContain(`FOO_BAR`);
+    expect(out()).toContain(`export RANDOM_KEY='ok'`);
+    expect(out()).toContain(`export FOO_BAR='yes'`);
+    expect(out()).toContain(`export claude_code_attribution_header='0'`);
   });
 
   it('emits CCWS_EXPORTED as a comma-separated list (unquoted) as the last export', async () => {

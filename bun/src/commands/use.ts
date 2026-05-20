@@ -6,20 +6,19 @@ import { validateName } from '../validate.js';
 import { logError } from '../logger.js';
 import { shQuote } from '../shellQuote.js';
 
+// Keys ccws owns: they describe the workspace itself, not the user's
+// runtime config, so they MUST NOT leak into the activated shell.
+// (CCWS_NAME is set explicitly elsewhere; CCWS_CREATED / CCWS_DESCRIPTION
+// are metadata for `ccws list --verbose`.)
 const INTERNAL_META = new Set(['CCWS_NAME', 'CCWS_CREATED', 'CCWS_DESCRIPTION']);
-const PROXY_KEYS_BOTH_CASES = new Set([
-  'HTTPS_PROXY', 'HTTP_PROXY', 'ALL_PROXY', 'NO_PROXY',
-  'https_proxy', 'http_proxy', 'all_proxy', 'no_proxy',
-]);
 
-function isAllowed(key: string): boolean {
+// Only valid POSIX identifiers can be exported — anything else would be a
+// shell-injection hazard. (The parser already filters, but defense in depth.)
+const KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+function isExportable(key: string): boolean {
   if (INTERNAL_META.has(key)) return false;
-  if (key === 'CCWS_BINARY') return true;
-  if (key.startsWith('ANTHROPIC_')) return true;
-  if (key.startsWith('CLAUDE_')) return true;
-  if (key.startsWith('CCWS_')) return true;
-  if (PROXY_KEYS_BOTH_CASES.has(key)) return true;
-  return false;
+  return KEY_RE.test(key);
 }
 
 export async function runUse(argv: string[]): Promise<number> {
@@ -47,7 +46,7 @@ export async function runUse(argv: string[]): Promise<number> {
 
   const env = parseEnvFile(envFile(name));
   for (const [key, value] of Object.entries(env)) {
-    if (!isAllowed(key)) continue;
+    if (!isExportable(key)) continue;
     if (key === 'CCWS_BINARY') {
       lines.push(`export CCWS_BINARY=${shQuote(value)}`);
       const newPath = `${dirname(value)}:${process.env.PATH ?? ''}`;
