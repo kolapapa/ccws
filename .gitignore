@@ -1,4 +1,16 @@
-node_modules/
-dist/
-*.log
+# tests
+tests/tmp/
+*.tmp
+
+# editor
+.vscode/
+.idea/
+*.swp
 .DS_Store
+
+# local config
+.env
+.env.local
+
+# internal design docs (not for public repo)
+docs/
