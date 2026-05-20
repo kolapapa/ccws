@@ -6,9 +6,12 @@
   "scripts": {
     "dev": "bun run src/index.ts",
     "build": "bun run build.ts",
+    "build:host": "bun build --compile --target=bun --minify src/index.ts --outfile dist/ccws-host",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "test:integration": "bun run build:host && vitest run tests/integration",
+    "typecheck": "tsc --noEmit",
+    "check": "bun run typecheck && bun run test && bun run test:integration"
   },
   "dependencies": {
     "ink": "^5.0.0",
