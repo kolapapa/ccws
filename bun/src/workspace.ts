@@ -16,6 +16,8 @@ export interface Workspace {
   endpoint: string;
   proxy: boolean;
   dangerous: boolean;
+  /** CCWS_NO_ISOLATE=1 — workspace ships its env but uses ~/.claude (no per-ws CLAUDE_CONFIG_DIR). */
+  noIsolate: boolean;
   active: boolean;
   envPath: string;
   env: Record<string, string>;
@@ -45,12 +47,14 @@ export function scanWorkspaces(opts: ScanOptions): Workspace[] {
     const env = parseEnvFile(envPath);
     const proxy = PROXY_KEYS.some((k) => k in env);
     const dangerous = env.CCWS_DANGEROUS === '1';
+    const noIsolate = env.CCWS_NO_ISOLATE === '1';
     const endpoint = env.ANTHROPIC_BASE_URL || 'anthropic';
     out.push({
       name,
       endpoint,
       proxy,
       dangerous,
+      noIsolate,
       active: activeName === name,
       envPath,
       env,

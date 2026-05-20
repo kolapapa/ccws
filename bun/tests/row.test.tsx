@@ -9,6 +9,7 @@ const baseWs: Workspace = {
   endpoint: 'anthropic',
   proxy: false,
   dangerous: false,
+  noIsolate: false,
   active: false,
   envPath: '/tmp/work/ccws.env',
   env: {},
@@ -54,6 +55,16 @@ describe('Row', () => {
   it('renders active marker when active=true', () => {
     const { lastFrame } = render(<Row workspace={{ ...baseWs, active: true }} isCursor={false} />);
     expect(lastFrame()).toContain('· active');
+  });
+
+  it('renders the bare marker when noIsolate=true', () => {
+    const { lastFrame } = render(<Row workspace={{ ...baseWs, noIsolate: true }} isCursor={false} />);
+    expect(lastFrame()).toContain('▸ bare');
+  });
+
+  it('does not render the bare marker when noIsolate=false', () => {
+    const { lastFrame } = render(<Row workspace={baseWs} isCursor={false} />);
+    expect(lastFrame()).not.toContain('bare');
   });
 
 });

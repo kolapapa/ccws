@@ -8,6 +8,7 @@ function ws(name: string, overrides: Partial<Workspace> = {}): Workspace {
     endpoint: 'anthropic',
     proxy: false,
     dangerous: false,
+    noIsolate: false,
     active: false,
     envPath: `/tmp/${name}/ccws.env`,
     env: {},

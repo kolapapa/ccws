@@ -10,6 +10,7 @@ function makeWs(env: Record<string, string>): Workspace {
     endpoint: env.ANTHROPIC_BASE_URL ?? 'anthropic',
     proxy: false,
     dangerous: false,
+    noIsolate: false,
     active: false,
     envPath: '/tmp/w/ccws.env',
     env,

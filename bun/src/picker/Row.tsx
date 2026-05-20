@@ -65,6 +65,9 @@ export const Row: React.FC<RowProps> = ({ workspace, isCursor }) => {
       ) : (
         <Text color={COLORS.dim} inverse={inv}>· safe </Text>
       )}
+      {workspace.noIsolate && (
+        <Text color={COLORS.lavender} inverse={inv} bold>  ▸ bare</Text>
+      )}
       {workspace.active && (
         <Text color={COLORS.dim} inverse={inv}>  · active</Text>
       )}
