@@ -313,14 +313,50 @@ SHIM
         source '$CCWS_PROJECT_ROOT/lib/symlink_farm.sh'
         source '$CCWS_PROJECT_ROOT/lib/tui.sh'
         source '$CCWS_PROJECT_ROOT/lib/tui_fzf.sh'
-        # Stub fzf as a function so it works whether or not real fzf is on PATH.
-        fzf() { printf 'work\n'; }
+        # Stub fzf. With --expect=ctrl-y real fzf emits 2 lines: pressed
+        # key (empty if Enter) + selection. The stub mirrors that.
+        fzf() { printf '\nwork\n'; }
         ccws_tui_fzf_pick </dev/null
     "
     # If the bug regresses, status would be 1 (set -u abort) and output
     # would contain 'unbound variable'.
     [[ "$status" -eq 0 ]]
     [[ "$output" != *"unbound variable"* ]]
+}
+
+@test "ccws_tui_fzf_pick emits 'yolo:NAME' when --expect captures ctrl-y" {
+    unset CCWS_NAME
+    run bash -c "
+        set -euo pipefail
+        export HOME='$HOME'
+        _ccws_fzf_min_version() { return 0; }
+        source '$CCWS_PROJECT_ROOT/lib/common.sh'
+        source '$CCWS_PROJECT_ROOT/lib/env.sh'
+        source '$CCWS_PROJECT_ROOT/lib/lock.sh'
+        source '$CCWS_PROJECT_ROOT/lib/symlink_farm.sh'
+        source '$CCWS_PROJECT_ROOT/lib/tui.sh'
+        source '$CCWS_PROJECT_ROOT/lib/tui_fzf.sh'
+        # Stub fzf to emit ctrl-y as the pressed key + 'work' as the selection.
+        fzf() { printf 'ctrl-y\nwork\n'; }
+        ccws_tui_fzf_pick </dev/null
+    "
+    [[ "$status" -eq 0 ]]
+    [[ "$output" == *"yolo:work"* ]]
+}
+
+@test "ccws_tui_fallback_pick yields 'yolo:NAME' on y<N> input" {
+    result=$(printf 'y1\n' | bash -c "
+        export HOME='$HOME'
+        source '$CCWS_PROJECT_ROOT/lib/common.sh'
+        source '$CCWS_PROJECT_ROOT/lib/env.sh'
+        source '$CCWS_PROJECT_ROOT/lib/tui.sh'
+        source '$CCWS_PROJECT_ROOT/lib/tui_fallback.sh'
+        ccws_tui_fallback_pick
+    ")
+    [[ "$result" == yolo:* ]]
+    # The name token after yolo: should be a real workspace from setup().
+    local name="${result#yolo:}"
+    [[ "$name" == "work" ]] || [[ "$name" == "personal" ]]
 }
 
 @test "ccws_tui_fallback_pick footer includes ghost hint when CCWS_NAME points at missing workspace" {

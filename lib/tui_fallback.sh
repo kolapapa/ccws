@@ -100,10 +100,22 @@ ccws_tui_fallback_pick() {
     # via shared helper.
     local ghost
     ghost=$(ccws_tui_ghost_hint)
-    printf '%s%snumber to select    q to quit%s%s : ' "$indent" "$dim" "$rs" "$ghost" >&2
+    printf '%s%snumber to select    y<N> for yolo    q to quit%s%s : ' "$indent" "$dim" "$rs" "$ghost" >&2
 
-    local choice
+    # yolo prefix: input like "y1" / "Y2" means "activate workspace N AND
+    # launch claude with --dangerously-skip-permissions". Mirrors the fzf
+    # picker's Ctrl-Y hotkey. The picker prefixes the emitted name with
+    # "yolo:" so bin/ccws routes through the dangerous-skip-permissions
+    # launch path.
+    local choice yolo=0
     IFS= read -r choice
+    case "$choice" in
+        y[0-9]*|Y[0-9]*)
+            yolo=1
+            choice="${choice#[yY]}"
+            ;;
+    esac
+
     case "$choice" in
         q|Q|"") return 1 ;;
         *[!0-9]*) ccws_log_error "invalid input"; return 1 ;;
@@ -113,7 +125,11 @@ ccws_tui_fallback_pick() {
                 ccws_log_error "out of range"
                 return 1
             fi
-            printf '%s\n' "${names[idx]}"
+            if [[ "$yolo" -eq 1 ]]; then
+                printf 'yolo:%s\n' "${names[idx]}"
+            else
+                printf '%s\n' "${names[idx]}"
+            fi
             ;;
     esac
 }

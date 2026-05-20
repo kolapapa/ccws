@@ -95,7 +95,21 @@ case "${1:-}" in
             usage
         else
             picked=$(ccws_tui_run) || exit $?
-            [[ -n "$picked" ]] && ccws_cmd_use_print_exports "$picked"
+            if [[ -n "$picked" ]]; then
+                # yolo: prefix means "activate AND launch claude with
+                # --dangerously-skip-permissions". Strip the prefix, emit
+                # the normal exports, then append CCWS_LAUNCH_MODE=yolo
+                # for share/init.sh to consume.
+                yolo_mode=0
+                if [[ "$picked" == yolo:* ]]; then
+                    yolo_mode=1
+                    picked="${picked#yolo:}"
+                fi
+                ccws_cmd_use_print_exports "$picked"
+                if [[ "$yolo_mode" -eq 1 ]]; then
+                    printf 'export CCWS_LAUNCH_MODE=yolo\n'
+                fi
+            fi
         fi
         exit $? ;;
 esac

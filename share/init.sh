@@ -41,12 +41,20 @@ ccws() {
             exports=$("$CCWS_DIR/bin/ccws") || return $?
             if [[ -n "$exports" ]]; then
                 eval "$exports"
-                # Offer to launch claude immediately
-                printf 'Launch claude now? [Y/n] ' >&2
-                local r
-                IFS= read -r r
-                if [[ "$r" != "n" && "$r" != "N" ]]; then
-                    claude
+                # Yolo mode: picker captured Ctrl-Y (fzf) or y<N> input
+                # (fallback). Launch claude with --dangerously-skip-permissions
+                # immediately — the user already opted in, no [Y/n] prompt.
+                if [[ "${CCWS_LAUNCH_MODE:-}" == "yolo" ]]; then
+                    unset CCWS_LAUNCH_MODE
+                    claude --dangerously-skip-permissions
+                else
+                    # Offer to launch claude immediately
+                    printf 'Launch claude now? [Y/n] ' >&2
+                    local r
+                    IFS= read -r r
+                    if [[ "$r" != "n" && "$r" != "N" ]]; then
+                        claude
+                    fi
                 fi
             fi
             ;;

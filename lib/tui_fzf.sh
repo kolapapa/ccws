@@ -195,7 +195,7 @@ ccws_tui_fzf_pick() {
     # it visible while the user navigates.
     local ghost
     ghost=$(ccws_tui_ghost_hint)
-    local help_line="${c_dim}↑↓ navigate    type to filter    ↵ activate    PgUp/PgDn preview    esc cancel${c_rs}${ghost}"
+    local help_line="${c_dim}↑↓ navigate    type to filter    ↵ activate    Ctrl-Y yolo    PgUp/PgDn preview    esc cancel${c_rs}${ghost}"
     local logo_block
     logo_block=$(_ccws_tui_logo_lines)
     local header_line
@@ -268,6 +268,7 @@ ccws_tui_fzf_pick() {
             --info=inline-right \
             --prompt="› " \
             --pointer="❯" \
+            --expect=ctrl-y \
             ${start_bind[@]+"${start_bind[@]}"} \
             --bind='pgup:preview-up,pgdn:preview-down,alt-k:preview-up,alt-j:preview-down' \
             --preview="$preview_cmd" \
@@ -282,8 +283,30 @@ ccws_tui_fzf_pick() {
     )
 
     [[ -z "$selected" ]] && return 1
-    # Strip ANSI then take the first whitespace-separated token (the name column).
-    printf '%s' "$selected" | sed 's/\x1b\[[0-9;]*m//g' | awk '{print $1}'
+    # With --expect, fzf emits the pressed key on line 1 (empty if Enter)
+    # and the selected line on line 2. Parse both, then strip ANSI from
+    # the selected line and pull the first whitespace-separated token
+    # (the name column). If the user pressed Ctrl-Y, prefix the name
+    # with "yolo:" so bin/ccws routes through the dangerous-skip-permissions
+    # launch path.
+    local key="" line=""
+    local _idx=0 _row
+    while IFS= read -r _row; do
+        case "$_idx" in
+            0) key="$_row" ;;
+            1) line="$_row" ;;
+        esac
+        _idx=$((_idx + 1))
+    done <<< "$selected"
+
+    [[ -z "$line" ]] && return 1
+    local name
+    name=$(printf '%s' "$line" | sed 's/\x1b\[[0-9;]*m//g' | awk '{print $1}')
+    if [[ "$key" == "ctrl-y" ]]; then
+        printf 'yolo:%s\n' "$name"
+    else
+        printf '%s\n' "$name"
+    fi
 }
 
 export CCWS_TUI_FZF_LOADED=1
