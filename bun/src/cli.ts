@@ -3,6 +3,7 @@ import { VERSION } from './version.js';
 import { runUse } from './commands/use.js';
 import { runUnset } from './commands/unset.js';
 import { runList } from './commands/list.js';
+import { runCurrent } from './commands/current.js';
 
 export const PICKER_SENTINEL = -1;
 
@@ -48,6 +49,7 @@ export function registerCommand(name: string, fn: Handler): void {
 registerCommand('use', runUse);
 registerCommand('unset', runUnset);
 registerCommand('list', runList);
+registerCommand('current', runCurrent);
 
 export async function dispatch(argv: string[]): Promise<number> {
   let noTui = false;
