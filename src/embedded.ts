@@ -27,6 +27,8 @@ export const INIT_SH = `ccws() {
             local picked
             picked=$(command ccws) || return $?
             if [[ -n "$picked" ]]; then
+                local unset_cmds
+                unset_cmds=$(command ccws unset 2>/dev/null) && eval "$unset_cmds"
                 local exports
                 exports=$(command ccws use "$picked") || return $?
                 eval "$exports"
@@ -81,6 +83,13 @@ export const INIT_FISH = `function ccws --description "Claude Code WorkSpace swi
             set -l picked (command ccws)
             or return $status
             if test -n "$picked"
+                set -l unset_output (command ccws unset)
+                for line in $unset_output
+                    if string match -qr '^unset ' -- $line
+                        set -l key (string replace -r '^unset ' '' -- $line)
+                        set -e $key 2>/dev/null
+                    end
+                end
                 set -l exports (command ccws use $picked)
                 or return $status
                 for line in $exports
