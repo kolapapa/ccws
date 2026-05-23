@@ -36,6 +36,18 @@ describe('embedded shell scripts', () => {
       expect(INIT_SH).toMatch(/exports=\$\(command ccws use "\$picked"\)/);
     });
 
+    it('no-arg branch unsets stale vars before applying new exports (regression for repeated picker runs)', () => {
+      // Without this, picking workspace A then workspace B leaves A's
+      // exclusive env vars (e.g. HTTPS_PROXY) in the shell — they "cover"
+      // subsequent picks because each workspace's ccws.env defines a
+      // disjoint subset of keys. Mirror the `use)` branch's unset-first
+      // pattern.
+      const noArgBranch = INIT_SH.split('"")')[1]?.split('*)')[0] ?? '';
+      expect(noArgBranch).toMatch(/unset_cmds=\$\(command ccws unset/);
+      expect(noArgBranch.indexOf('command ccws unset'))
+        .toBeLessThan(noArgBranch.indexOf('command ccws use'));
+    });
+
     it('honors CCWS_DANGEROUS for claude launch flag', () => {
       expect(INIT_SH).toContain('CCWS_DANGEROUS');
       expect(INIT_SH).toContain('--dangerously-skip-permissions');
@@ -66,6 +78,13 @@ describe('embedded shell scripts', () => {
     it('no-arg branch chains picker → use internally', () => {
       expect(INIT_FISH).toMatch(/picked \(command ccws\)/);
       expect(INIT_FISH).toMatch(/command ccws use \$picked/);
+    });
+
+    it('no-arg branch unsets stale vars before applying new exports (regression for repeated picker runs)', () => {
+      const noArgBranch = INIT_FISH.split('case ""')[1]?.split("case '*'")[0] ?? '';
+      expect(noArgBranch).toMatch(/command ccws unset/);
+      expect(noArgBranch.indexOf('command ccws unset'))
+        .toBeLessThan(noArgBranch.indexOf('command ccws use'));
     });
   });
 
