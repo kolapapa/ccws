@@ -42,6 +42,32 @@ describe('runInit', () => {
     expect(existsSync(join(tmp, '.ccws/workspaces'))).toBe(true);
     expect(existsSync(join(tmp, '.claude/commands/whoami.md'))).toBe(true);
     expect(existsSync(join(tmp, '.claude/commands/switch.md'))).toBe(true);
+    const defEnv = join(tmp, '.ccws/workspaces/default/ccws.env');
+    expect(existsSync(defEnv)).toBe(true);
+    expect(readFileSync(defEnv, 'utf8')).toMatch(/^CCWS_NO_ISOLATE=1$/m);
+  });
+
+  it('default workspace is force-created with noIsolate and blank prompts', async () => {
+    mkdirSync(join(tmp, '.claude'), { recursive: true });
+    _setReader(async () => '\n');
+    expect(await runInit([])).toBe(0);
+    const defEnv = readFileSync(join(tmp, '.ccws/workspaces/default/ccws.env'), 'utf8');
+    expect(defEnv).toMatch(/^CCWS_NAME=default$/m);
+    expect(defEnv).toMatch(/^CCWS_NO_ISOLATE=1$/m);
+    expect(defEnv).not.toMatch(/ANTHROPIC_BASE_URL=/);
+    expect(defEnv).not.toMatch(/ANTHROPIC_AUTH_TOKEN=/);
+    expect(defEnv).not.toMatch(/HTTPS_PROXY=/);
+  });
+
+  it('default step is skipped (noop) when default already exists', async () => {
+    mkdirSync(join(tmp, '.claude'), { recursive: true });
+    mkdirSync(join(tmp, '.ccws/workspaces/default'), { recursive: true });
+    const preExisting = 'CCWS_NAME=default\nCCWS_MANUAL=1\n';
+    writeFileSync(join(tmp, '.ccws/workspaces/default/ccws.env'), preExisting);
+    // workspaces dir is non-empty → init hits the "already initialized" branch
+    // and exits before any prompts. Verify it does NOT clobber the env file.
+    expect(await runInit([])).toBe(0);
+    expect(readFileSync(join(tmp, '.ccws/workspaces/default/ccws.env'), 'utf8')).toBe(preExisting);
   });
 
   it('cancels when user declines to bootstrap missing ~/.claude', async () => {

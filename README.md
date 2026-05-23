@@ -122,8 +122,8 @@ Conflict warning: if you have an existing `claude` shell function (e.g. from a c
 | Step | Command | What it modifies | When you run it |
 |---|---|---|---|
 | **1. Install** | `curl ... | bash` | `~/.local/bin/ccws` · `~/.zshrc` (hook line) | Once per machine |
-| **2. Init** | `ccws init` | `~/.claude/commands/{whoami,switch}.md` · optionally `~/.claude/` itself | Once per user |
-| **3. Add workspace** | `ccws add NAME [...]` | `~/.ccws/workspaces/NAME/` (env + symlinks) | Once per account |
+| **2. Init** | `ccws init` | `~/.claude/commands/{whoami,switch}.md` · `~/.ccws/workspaces/default/` (home anchor) · optionally `~/.claude/` itself | Once per user |
+| **3. Add workspace** | `ccws add NAME [...]` | `~/.ccws/workspaces/NAME/` (env + symlinks) | Once per additional account |
 | **4. Activate (per-shell)** | `ccws use NAME` | Current shell's env vars (`CLAUDE_CONFIG_DIR`, `ANTHROPIC_*`, proxy…) | Each switch |
 | **4b. Or pin (per-dir)** | `ccws local NAME` | `.ccws-workspace` file in `$PWD` | Once per project dir |
 | **4c. Or pin (per-user)** | `ccws global NAME` | `~/.ccws/global` | Once, as a default |
@@ -143,18 +143,21 @@ user-default      ccws global <name>     → ~/.ccws/global
 
 ## First-time setup · `ccws init`
 
-`ccws init` is the entry point for new users. 3 steps:
+`ccws init` is the entry point for new users. 4 steps:
 
 1. **Detect `~/.claude/`** — if present, your existing setup stays as-is (plain `claude` keeps using it). If missing, optionally bootstrap an empty `~/.claude/` as the shared plugin store
 2. **Install slash commands** `/whoami` and `/switch` into `~/.claude/commands/`
-3. **Optionally add your first workspace** — for a different account or gateway (Anthropic / DeepSeek / Kimi / etc.). You choose the name (no auto `default`)
+3. **Create the `default` home workspace** (forced) — this is the anchor. When active, claude uses `~/.claude/` directly (no private `CLAUDE_CONFIG_DIR`). Optionally pin everyday API config (token / endpoint / proxy) here, or leave blank to inherit whatever `~/.claude/settings.json` has
+4. **Optionally add another (isolated) workspace** — for a different account or gateway (Anthropic / DeepSeek / Kimi / etc.). Isolated workspaces own their own `CLAUDE_CONFIG_DIR` but still share `plugins/`, `skills/`, `settings.json` via symlinks back to `~/.claude/`
 
-ccws doesn't auto-create a "default" workspace. Existing `~/.claude/` stays as your unmanaged primary; ccws only manages workspaces you explicitly name. Mental model:
+**Mental model — `default` is the install anchor:**
 
-| | Node | Claude Code |
+| | Node | Claude Code (ccws) |
 |---|---|---|
-| System default | `node` (system install) | `claude` (uses `~/.claude/`) |
-| Managed alternates | `nvm use 18 && node` | `ccws use work && claude` |
+| Anchor (shared install) | `node` (system install) | `ccws use default && claude` → reads `~/.claude/` directly |
+| Managed alternates | `nvm use 18 && node` | `ccws use work && claude` → reads `~/.ccws/workspaces/work/`, plugins symlinked from `~/.claude/` |
+
+**Why force `default`?** Some plugins (e.g. `claude-hud`) hardcode paths under `~/.claude/` and break when `CLAUDE_CONFIG_DIR` points elsewhere. Installing them from `default` writes to the real `~/.claude/`, so every isolated workspace inherits them through the symlink farm — no per-workspace re-install, no broken paths.
 
 Idempotent: re-running shows status instead of repeating setup. Use `ccws init --reset` to wipe and restart.
 
@@ -233,19 +236,22 @@ claude                            # uses company regardless of $PWD
 
 ## Home workspaces · `CCWS_NO_ISOLATE=1`
 
-A normal ccws workspace owns its own `CLAUDE_CONFIG_DIR` — Claude Code reads plugins, settings, sessions from `~/.ccws/workspaces/<name>/`. Plugin install paths land there too.
+A normal (isolated) ccws workspace owns its own `CLAUDE_CONFIG_DIR` — Claude Code reads sessions, projects, `.claude.json` from `~/.ccws/workspaces/<name>/`. Shared items (`plugins/`, `skills/`, `settings.json`, `commands/`, `hooks/`, ...) are symlinked back to `~/.claude/`.
 
-Sometimes you want a workspace that **pins your everyday API config** (token / endpoint / proxy / model) but still uses `~/.claude/` for plugins and settings. Common use case: a "default" workspace that's just your daily account, with plugin installs going to the global store so other workspaces see them too.
+A **home workspace** drops the private `CLAUDE_CONFIG_DIR` entirely: Claude Code reads everything (including sessions) from `~/.claude/`. Use cases:
 
-Add `CCWS_NO_ISOLATE=1` to that workspace's `ccws.env`:
+- The auto-created `default` workspace — the install anchor for plugins that hardcode `~/.claude/` paths
+- Pinning your everyday API config (token / endpoint / proxy / model) without isolating any state
+
+`ccws init` creates `default` for you with `CCWS_NO_ISOLATE=1`. To create an **additional** home workspace later:
 
 ```bash
-ccws add default --base-url https://api.anthropic.com --token sk-...
-echo 'CCWS_NO_ISOLATE=1' >> ~/.ccws/workspaces/default/ccws.env
+ccws add work-home --base-url https://api.anthropic.com --token sk-...
+echo 'CCWS_NO_ISOLATE=1' >> ~/.ccws/workspaces/work-home/ccws.env
 ```
 
-When activated:
-- `CCWS_NAME=default` is exported (picker / `ccws current` still identify it)
+When a home workspace is activated:
+- `CCWS_NAME=<name>` is exported (picker / `ccws current` still identify it)
 - **`CLAUDE_CONFIG_DIR` is NOT exported** — Claude Code falls back to `~/.claude/`
 - Token / endpoint / proxy / custom env still ship as usual
 
@@ -254,7 +260,7 @@ In the picker, home workspaces:
 - Show a `· home` marker on the row
 - Preview's `CLAUDE_CONFIG_DIR` displays `~/.claude` (clear visual signal that they share the global dir)
 
-Recommended pattern: install plugins from your home workspace (so `installed_plugins.json` records `~/.claude/plugins/...` paths), then use other (isolated) workspaces for per-account work — they read those plugins through their own `plugins/` symlink.
+**Recommended workflow:** install plugins from `default` so writes land in `~/.claude/{plugins,settings.json,...}`. Every other workspace inherits them through its symlink farm — no re-install, no broken hardcoded paths.
 
 ## Proxy per workspace
 

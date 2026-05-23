@@ -68,6 +68,7 @@ export interface WriteEnvOptions {
   binary?: string;
   description?: string;
   proxy?: string;
+  noIsolate?: boolean;
 }
 
 function isoNowUTC(): string {
@@ -90,6 +91,7 @@ export function writeEnvFile(path: string, opts: WriteEnvOptions): void {
     lines.push(`HTTPS_PROXY=${opts.proxy}`);
     lines.push(`HTTP_PROXY=${opts.proxy}`);
   }
+  if (opts.noIsolate) lines.push('CCWS_NO_ISOLATE=1');
   writeFileSync(path, `${lines.join('\n')}\n`);
   chmodSync(path, 0o600);
 }
