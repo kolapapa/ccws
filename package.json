@@ -1,6 +1,6 @@
 {
   "name": "ccws",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "ccws — Claude Code WorkSpace · per-shell environment switcher with TUI picker",
   "type": "module",
   "scripts": {

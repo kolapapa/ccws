@@ -68,7 +68,7 @@ What this does:
 Verify:
 
 ```bash
-ccws --version       # ccws 1.2.2
+ccws --version       # ccws 1.2.3
 ```
 
 Then run `ccws init`.
@@ -412,7 +412,7 @@ ccws doctor                Run health checks
 ccws sync [<name>]         Re-link symlinks for one or all workspaces
 ccws upgrade [--check]     Upgrade to latest GitHub release
                            [--version vX.Y.Z]
-ccws --version             Print ccws 1.2.2
+ccws --version             Print ccws 1.2.3
 ccws --no-tui              Bypass TUI when called without args
 ccws --help                Show this help
 ```
