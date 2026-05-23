@@ -29,11 +29,11 @@ describe('runList', () => {
     expect(stderrWrites.join('')).toContain("no workspaces yet — run 'ccws add <name>'");
   });
 
-  it('plain mode prints " <name>" per workspace', async () => {
+  it('plain mode prints "  <name>" per workspace (2-space marker for alignment)', async () => {
     mkdirSync(join(tmp, '.ccws/workspaces/alpha'), { recursive: true });
     mkdirSync(join(tmp, '.ccws/workspaces/beta'), { recursive: true });
     expect(await runList([])).toBe(0);
-    expect(stdoutWrites.join('').split('\n').filter(Boolean).sort()).toEqual([' alpha', ' beta']);
+    expect(stdoutWrites.join('').split('\n').filter(Boolean).sort()).toEqual(['  alpha', '  beta']);
   });
 
   it('marks active workspace with *', async () => {
@@ -42,21 +42,43 @@ describe('runList', () => {
     process.env.CCWS_NAME = 'beta';
     expect(await runList([])).toBe(0);
     const lines = stdoutWrites.join('').split('\n').filter(Boolean).sort();
-    expect(lines).toEqual([' alpha', '* beta']);
+    expect(lines).toEqual(['  alpha', '* beta']);
   });
 
-  it('verbose mode prints endpoint + created columns', async () => {
+  it('verbose mode prints endpoint + created columns with padding', async () => {
     mkdirSync(join(tmp, '.ccws/workspaces/alpha'), { recursive: true });
     writeFileSync(join(tmp, '.ccws/workspaces/alpha/ccws.env'),
       'CCWS_NAME=alpha\nCCWS_CREATED=2026-01-01T00:00:00Z\nANTHROPIC_BASE_URL=https://x\n');
     expect(await runList(['--verbose'])).toBe(0);
-    expect(stdoutWrites.join('')).toContain(' alpha  endpoint=https://x  created=2026-01-01T00:00:00Z');
+    expect(stdoutWrites.join('')).toContain('  alpha  endpoint=https://x  created=2026-01-01T00:00:00Z');
   });
 
   it('verbose mode defaults endpoint to "anthropic" and created to "?" when missing', async () => {
     mkdirSync(join(tmp, '.ccws/workspaces/alpha'), { recursive: true });
     writeFileSync(join(tmp, '.ccws/workspaces/alpha/ccws.env'), 'CCWS_NAME=alpha\n');
     expect(await runList(['-v'])).toBe(0);
-    expect(stdoutWrites.join('')).toContain(' alpha  endpoint=anthropic  created=?');
+    expect(stdoutWrites.join('')).toContain('  alpha  endpoint=anthropic  created=?');
+  });
+
+  it('verbose mode pads name and endpoint columns to widest entries', async () => {
+    mkdirSync(join(tmp, '.ccws/workspaces/a'), { recursive: true });
+    mkdirSync(join(tmp, '.ccws/workspaces/longname'), { recursive: true });
+    writeFileSync(join(tmp, '.ccws/workspaces/a/ccws.env'),
+      'CCWS_NAME=a\nANTHROPIC_BASE_URL=x\nCCWS_CREATED=t1\n');
+    writeFileSync(join(tmp, '.ccws/workspaces/longname/ccws.env'),
+      'CCWS_NAME=longname\nANTHROPIC_BASE_URL=https://very-long-endpoint.example.com/v1\nCCWS_CREATED=t2\n');
+    expect(await runList(['-v'])).toBe(0);
+    const out = stdoutWrites.join('');
+    // "a" gets padded to longname width (8 chars), "x" gets padded to endpoint width
+    expect(out).toContain('  a         endpoint=x');
+    expect(out).toContain('  longname  endpoint=https://very-long-endpoint.example.com/v1  created=t2');
+  });
+
+  it('verbose mode tags home workspaces (CCWS_NO_ISOLATE=1) with · home', async () => {
+    mkdirSync(join(tmp, '.ccws/workspaces/home'), { recursive: true });
+    writeFileSync(join(tmp, '.ccws/workspaces/home/ccws.env'),
+      'CCWS_NAME=home\nCCWS_NO_ISOLATE=1\nCCWS_CREATED=t1\n');
+    expect(await runList(['-v'])).toBe(0);
+    expect(stdoutWrites.join('')).toContain('· home');
   });
 });
