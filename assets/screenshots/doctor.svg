@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 440" width="880" height="440" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="10"/>
+      <feOffset dx="0" dy="6"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.45"/></feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="winclip2">
+      <rect x="20" y="20" width="840" height="400" rx="10"/>
+    </clipPath>
+    <style>
+      .t  { fill:#cdd6f4; font-size:13px; }
+      .mu { fill:#7f849c; }
+      .gn { fill:#a6e3a1; }
+      .yl { fill:#f9e2af; }
+      .rd { fill:#f38ba8; }
+      .mv { fill:#cba6f7; }
+      .sk { fill:#89dceb; }
+      .lv { fill:#b4befe; }
+      .b  { font-weight:600; }
+    </style>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <rect x="20" y="20" width="840" height="400" rx="10" fill="#1e1e2e"/>
+  </g>
+  <g clip-path="url(#winclip2)">
+    <rect x="20" y="20" width="840" height="36" fill="#181825"/>
+  </g>
+  <circle cx="44" cy="38" r="6" fill="#ff5f56"/>
+  <circle cx="64" cy="38" r="6" fill="#ffbd2e"/>
+  <circle cx="84" cy="38" r="6" fill="#27c93f"/>
+  <text x="440" y="42" text-anchor="middle" font-size="11" fill="#6c7086">ccws doctor</text>
+
+  <g transform="translate(48,80)">
+    <text class="t" x="0" y="0"><tspan class="mv">$</tspan> ccws doctor</text>
+    <text class="t mu" x="0" y="24">ccws doctor — environment health checks</text>
+
+    <text class="t" x="0" y="58">  <tspan class="gn b">✓</tspan> <tspan class="mu">~/.claude/</tspan> exists</text>
+    <text class="t" x="0" y="78">  <tspan class="gn b">✓</tspan> <tspan class="mu">~/.ccws/</tspan> initialized</text>
+    <text class="t" x="0" y="98">  <tspan class="gn b">✓</tspan> workspace <tspan class="sk">'default'</tspan> symlinks ok</text>
+    <text class="t" x="0" y="118">  <tspan class="gn b">✓</tspan> workspace <tspan class="sk">'work'</tspan> symlinks ok</text>
+    <text class="t" x="0" y="138">  <tspan class="gn b">✓</tspan> workspace <tspan class="sk">'personal'</tspan> symlinks ok</text>
+    <text class="t" x="0" y="158">  <tspan class="gn b">✓</tspan> workspace <tspan class="sk">'deepseek'</tspan> symlinks ok</text>
+    <text class="t" x="0" y="178">  <tspan class="gn b">✓</tspan> workspace <tspan class="sk">'work'</tspan> env valid</text>
+    <text class="t" x="0" y="198">  <tspan class="gn b">✓</tspan> workspace <tspan class="sk">'personal'</tspan> env valid</text>
+    <text class="t" x="0" y="218">  <tspan class="yl b">!</tspan> workspace <tspan class="sk">'deepseek'</tspan> uses non-anthropic endpoint <tspan class="mu">(expected for gateway)</tspan></text>
+    <text class="t" x="0" y="238">  <tspan class="gn b">✓</tspan> <tspan class="lv">claude</tspan> binary on PATH</text>
+    <text class="t" x="0" y="258">  <tspan class="gn b">✓</tspan> shell rc has ccws init</text>
+
+    <text class="t" x="0" y="296">summary: <tspan class="yl">1 warning(s)</tspan>, <tspan class="gn">0 error(s)</tspan></text>
+  </g>
+</svg>

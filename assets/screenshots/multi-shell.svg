@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 360" width="980" height="360" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="10"/>
+      <feOffset dx="0" dy="6"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.45"/></feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="winA"><rect x="20" y="20" width="460" height="320" rx="10"/></clipPath>
+    <clipPath id="winB"><rect x="500" y="20" width="460" height="320" rx="10"/></clipPath>
+    <style>
+      .t  { fill:#cdd6f4; font-size:13px; }
+      .mu { fill:#7f849c; }
+      .gn { fill:#a6e3a1; }
+      .yl { fill:#f9e2af; }
+      .rd { fill:#f38ba8; }
+      .mv { fill:#cba6f7; }
+      .sk { fill:#89dceb; }
+      .lv { fill:#b4befe; }
+      .pc { fill:#fab387; }
+      .b  { font-weight:600; }
+    </style>
+  </defs>
+
+  <!-- left window -->
+  <g filter="url(#shadow)">
+    <rect x="20" y="20" width="460" height="320" rx="10" fill="#1e1e2e"/>
+  </g>
+  <g clip-path="url(#winA)">
+    <rect x="20" y="20" width="460" height="36" fill="#181825"/>
+  </g>
+  <circle cx="44" cy="38" r="6" fill="#ff5f56"/>
+  <circle cx="64" cy="38" r="6" fill="#ffbd2e"/>
+  <circle cx="84" cy="38" r="6" fill="#27c93f"/>
+  <text x="250" y="42" text-anchor="middle" font-size="11" fill="#6c7086">Terminal · work</text>
+
+  <g transform="translate(40,80)">
+    <text class="t" x="0" y="0"><tspan class="mv">$</tspan> ccws use <tspan class="sk">work</tspan></text>
+    <text class="t" x="0" y="22"><tspan class="mv">$</tspan> ccws current</text>
+    <text class="t gn b" x="0" y="44">work</text>
+    <text class="t" x="0" y="66"><tspan class="mv">$</tspan> echo <tspan class="yl">$ANTHROPIC_BASE_URL</tspan></text>
+    <text class="t sk" x="0" y="88">https://api.anthropic.com</text>
+    <text class="t" x="0" y="110"><tspan class="mv">$</tspan> echo <tspan class="yl">$CLAUDE_CONFIG_DIR</tspan></text>
+    <text class="t mu" x="0" y="132">~/.ccws/workspaces/work</text>
+    <text class="t" x="0" y="160"><tspan class="mv">$</tspan> <tspan class="lv b">claude</tspan></text>
+    <text class="t pc" x="0" y="184">› Hi! Working on $WORK_PROJECT…</text>
+    <text class="t mu" x="0" y="220">  <tspan class="gn">●</tspan> work account · sessions isolated</text>
+  </g>
+
+  <!-- right window -->
+  <g filter="url(#shadow)">
+    <rect x="500" y="20" width="460" height="320" rx="10" fill="#1e1e2e"/>
+  </g>
+  <g clip-path="url(#winB)">
+    <rect x="500" y="20" width="460" height="36" fill="#181825"/>
+  </g>
+  <circle cx="524" cy="38" r="6" fill="#ff5f56"/>
+  <circle cx="544" cy="38" r="6" fill="#ffbd2e"/>
+  <circle cx="564" cy="38" r="6" fill="#27c93f"/>
+  <text x="730" y="42" text-anchor="middle" font-size="11" fill="#6c7086">Terminal · personal</text>
+
+  <g transform="translate(520,80)">
+    <text class="t" x="0" y="0"><tspan class="mv">$</tspan> ccws use <tspan class="sk">personal</tspan></text>
+    <text class="t" x="0" y="22"><tspan class="mv">$</tspan> ccws current</text>
+    <text class="t gn b" x="0" y="44">personal</text>
+    <text class="t" x="0" y="66"><tspan class="mv">$</tspan> echo <tspan class="yl">$ANTHROPIC_BASE_URL</tspan></text>
+    <text class="t sk" x="0" y="88">https://api.deepseek.com/anthropic</text>
+    <text class="t" x="0" y="110"><tspan class="mv">$</tspan> echo <tspan class="yl">$CLAUDE_CONFIG_DIR</tspan></text>
+    <text class="t mu" x="0" y="132">~/.ccws/workspaces/personal</text>
+    <text class="t" x="0" y="160"><tspan class="mv">$</tspan> <tspan class="lv b">claude</tspan></text>
+    <text class="t pc" x="0" y="184">› Side project hacking…</text>
+    <text class="t mu" x="0" y="220">  <tspan class="gn">●</tspan> different account · same machine</text>
+  </g>
+</svg>

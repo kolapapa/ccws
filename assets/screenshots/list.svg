@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 320" width="880" height="320" font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="10"/>
+      <feOffset dx="0" dy="6"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.45"/></feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="winclip3">
+      <rect x="20" y="20" width="840" height="280" rx="10"/>
+    </clipPath>
+    <style>
+      .t  { fill:#cdd6f4; font-size:13px; }
+      .mu { fill:#7f849c; }
+      .gn { fill:#a6e3a1; }
+      .yl { fill:#f9e2af; }
+      .mv { fill:#cba6f7; }
+      .sk { fill:#89dceb; }
+      .lv { fill:#b4befe; }
+      .b  { font-weight:600; }
+    </style>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <rect x="20" y="20" width="840" height="280" rx="10" fill="#1e1e2e"/>
+  </g>
+  <g clip-path="url(#winclip3)">
+    <rect x="20" y="20" width="840" height="36" fill="#181825"/>
+  </g>
+  <circle cx="44" cy="38" r="6" fill="#ff5f56"/>
+  <circle cx="64" cy="38" r="6" fill="#ffbd2e"/>
+  <circle cx="84" cy="38" r="6" fill="#27c93f"/>
+  <text x="440" y="42" text-anchor="middle" font-size="11" fill="#6c7086">ccws list --verbose</text>
+
+  <g transform="translate(48,80)">
+    <text class="t" x="0" y="0"><tspan class="mv">$</tspan> ccws list --verbose</text>
+
+    <text class="t" x="0" y="32"><tspan class="gn b">*</tspan> <tspan class="gn b">work    </tspan>  <tspan class="mu">endpoint=</tspan><tspan class="sk">anthropic                         </tspan>  <tspan class="mu">created=</tspan><tspan class="yl">2026-05-17T12:30:00Z</tspan></text>
+    <text class="t" x="0" y="52">  personal  <tspan class="mu">endpoint=</tspan><tspan class="sk">anthropic                         </tspan>  <tspan class="mu">created=</tspan><tspan class="yl">2026-05-17T12:45:15Z</tspan></text>
+    <text class="t" x="0" y="72">  deepseek  <tspan class="mu">endpoint=</tspan><tspan class="sk">https://api.deepseek.com/anthropic</tspan>  <tspan class="mu">created=</tspan><tspan class="yl">2026-05-17T13:02:33Z</tspan></text>
+    <text class="t" x="0" y="92">  company   <tspan class="mu">endpoint=</tspan><tspan class="sk">anthropic                         </tspan>  <tspan class="mu">created=</tspan><tspan class="yl">2026-05-17T13:18:07Z</tspan></text>
+    <text class="t" x="0" y="112">  default   <tspan class="mu">endpoint=</tspan><tspan class="sk">anthropic                         </tspan>  <tspan class="mu">created=</tspan><tspan class="yl">2026-05-17T12:00:00Z</tspan>  <tspan class="mv">· home</tspan></text>
+
+    <text class="t mu" x="0" y="156"><tspan class="gn b">*</tspan> marks the workspace active in this shell</text>
+  </g>
+</svg>

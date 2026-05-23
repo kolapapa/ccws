@@ -2,6 +2,10 @@
 
 > Per-shell Claude Code workspace switcher — run different accounts in different terminals, simultaneously, with shared plugin code and isolated auth.
 
+<p align="center">
+  <img src="assets/screenshots/picker.svg" alt="ccws interactive picker — Ink TUI with Catppuccin palette, workspace list, and preview pane" width="820"/>
+</p>
+
 A single compiled binary (TypeScript / Bun) with zero runtime dependencies. No bash, no fzf install, no gum install.
 
 ## What this solves
@@ -352,56 +356,25 @@ After selecting, ccws asks `Launch claude now? [Y/n]` — press Enter and you're
 
 ### Multi-shell concurrent — the killer feature
 
-```
-┌───── Terminal 1 ────────────────┐  ┌───── Terminal 2 ────────────────┐
-│ $ ccws use work                  │  │ $ ccws use personal              │
-│ $ ccws current                   │  │ $ ccws current                   │
-│ work (CLAUDE_CONFIG_DIR=         │  │ personal (CLAUDE_CONFIG_DIR=     │
-│   ~/.ccws/workspaces/work)       │  │   ~/.ccws/workspaces/personal)   │
-│ $ claude                         │  │ $ claude                         │
-│ > Hi! Working on $WORK_PROJECT…  │  │ > Hi! Working on my side-project │
-└──────────────────────────────────┘  └──────────────────────────────────┘
-            ↓                                       ↓
-   work account auth tokens              personal account auth tokens
-   work sessions / history               personal sessions / history
-              ↓                                     ↓
-     shared plugins/skills              shared plugins/skills
-        from ~/.claude/                   from ~/.claude/
-```
+<p align="center">
+  <img src="assets/screenshots/multi-shell.svg" alt="Two terminals side by side — left shell active as 'work', right shell active as 'personal' — different ANTHROPIC_BASE_URL and CLAUDE_CONFIG_DIR in each, sharing the same ~/.claude/ plugins" width="900"/>
+</p>
 
 Each terminal exports its own `CLAUDE_CONFIG_DIR` and endpoint env vars. Plugin code is shared via symlinks — install once, work everywhere.
 
 ### `ccws list --verbose`
 
-```
-$ ccws list --verbose
-* work        endpoint=anthropic                          created=2026-05-17T12:30:00Z
-  personal    endpoint=anthropic                          created=2026-05-17T12:45:15Z
-  deepseek    endpoint=https://api.deepseek.com/anthropic created=2026-05-17T13:02:33Z
-  company     endpoint=anthropic                          created=2026-05-17T13:18:07Z
-```
+<p align="center">
+  <img src="assets/screenshots/list.svg" alt="ccws list --verbose output — five workspaces with endpoint, creation timestamp, the active row marked with a green asterisk, default workspace marked as · home" width="820"/>
+</p>
 
 `*` marks the workspace currently active in **this** shell.
 
 ### `ccws doctor`
 
-```
-$ ccws doctor
-ccws doctor — environment health checks
-
-  ✓ ~/.claude/ exists
-  ✓ ~/.ccws/ initialized
-  ✓ workspace 'work' symlinks ok
-  ✓ workspace 'personal' symlinks ok
-  ✓ workspace 'deepseek' symlinks ok
-  ✓ workspace 'work' env valid
-  ✓ workspace 'personal' env valid
-  ✓ workspace 'deepseek' env valid
-  ✓ claude binary on PATH
-  ✓ shell rc has ccws init
-
-summary: 0 warning(s), 0 error(s)
-```
+<p align="center">
+  <img src="assets/screenshots/doctor.svg" alt="ccws doctor output — health check rows for ~/.claude, ~/.ccws, each workspace's symlink farm and env, plus claude binary and shell rc, with a yellow warning row noting a gateway endpoint" width="820"/>
+</p>
 
 Color-coded: `✓` green ok · `!` yellow warning · `✗` red error.
 
