@@ -13,6 +13,7 @@ import { runSync } from './commands/sync.js';
 import { runAdd } from './commands/add.js';
 import { runDoctor } from './commands/doctor.js';
 import { runInit } from './commands/init.js';
+import { runUpgrade } from './commands/upgrade.js';
 
 export const PICKER_SENTINEL = -1;
 
@@ -38,6 +39,8 @@ Usage:
   ccws rm <name> [-f]        Remove workspace
   ccws doctor                Run health checks
   ccws sync [<name>]         Re-link symlinks
+  ccws upgrade [--check]     Upgrade to latest release
+                             [--version vX.Y.Z]
   ccws --no-tui              Bypass TUI when called without args
   ccws --help                Show this help
 
@@ -68,6 +71,7 @@ registerCommand('sync', runSync);
 registerCommand('add', runAdd);
 registerCommand('doctor', runDoctor);
 registerCommand('init', runInit);
+registerCommand('upgrade', runUpgrade);
 
 export async function dispatch(argv: string[]): Promise<number> {
   let noTui = false;

@@ -64,7 +64,7 @@ What this does:
 Verify:
 
 ```bash
-ccws --version       # ccws 1.0.0
+ccws --version       # ccws 1.1.0
 ```
 
 Then run `ccws init`.
@@ -76,6 +76,24 @@ Then run `ccws init`.
 ./install.sh --no-shell-rc            # don't touch ~/.zshrc / ~/.bashrc / fish config
 ./install.sh --version v1.0.0         # pin to a specific release (default: latest)
 ```
+
+### Upgrade
+
+```bash
+ccws upgrade                  # install latest release if newer than current
+ccws upgrade --check          # print "current → latest" without downloading
+ccws upgrade --version v1.0.0 # install / downgrade to a specific version
+```
+
+`ccws upgrade` overwrites `~/.local/bin/ccws` (or wherever the binary resolves via `realpath`) and `~/.ccws/bin/ccws-picker` with the matching GitHub Release artifacts for your platform. Shell rc is left alone — that's `install.sh`'s job at first install.
+
+After upgrade, restart your shell so the `ccws()` function re-evals from the new binary:
+
+```bash
+exec $SHELL -l
+```
+
+If `ccws` is a symlink (developer mode, `--from-source`), `upgrade` refuses rather than break your dev tree. Rebuild with `bun run build:host` instead.
 
 ### Developer mode
 
@@ -413,7 +431,9 @@ ccws current [--path]      Show currently active workspace
 ccws rm <name> [-f]        Remove workspace
 ccws doctor                Run health checks
 ccws sync [<name>]         Re-link symlinks for one or all workspaces
-ccws --version             Print ccws 1.0.0
+ccws upgrade [--check]     Upgrade to latest GitHub release
+                           [--version vX.Y.Z]
+ccws --version             Print ccws 1.1.0
 ccws --no-tui              Bypass TUI when called without args
 ccws --help                Show this help
 ```
