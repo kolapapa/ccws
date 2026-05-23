@@ -85,7 +85,7 @@ ccws upgrade --check          # print "current → latest" without downloading
 ccws upgrade --version v1.0.0 # install / downgrade to a specific version
 ```
 
-`ccws upgrade` overwrites `~/.local/bin/ccws` (or wherever the binary resolves via `realpath`) and `~/.ccws/bin/ccws-picker` with the matching GitHub Release artifacts for your platform. Shell rc is left alone — that's `install.sh`'s job at first install.
+`ccws upgrade` overwrites `~/.local/bin/ccws` (or wherever the binary resolves via `realpath`) with the matching GitHub Release artifact for your platform, and cleans up the legacy `~/.ccws/bin/ccws-picker` copy from pre-v1.x installs. Shell rc is left alone — that's `install.sh`'s job at first install.
 
 After upgrade, restart your shell so the `ccws()` function re-evals from the new binary:
 

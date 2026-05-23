@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 
 const TARGETS = [
   { triple: 'bun-darwin-arm64', os: 'darwin', arch: 'arm64' },
@@ -27,12 +27,8 @@ async function main(): Promise<void> {
   let failed = 0;
   for (const { triple, os, arch } of TARGETS) {
     const platform = `${os}-${arch}`;
-    const cliOut    = `dist/ccws-${platform}`;
-    const pickerOut = `dist/ccws-picker-${platform}`;
-    const ok = await buildOne(triple, cliOut);
-    if (!ok) { failed++; continue; }
-    copyFileSync(cliOut, pickerOut);
-    process.stdout.write(`  copied → ${pickerOut}\n`);
+    const ok = await buildOne(triple, `dist/ccws-${platform}`);
+    if (!ok) failed++;
   }
   if (failed > 0) {
     process.stderr.write(`\n${failed} target(s) failed\n`);

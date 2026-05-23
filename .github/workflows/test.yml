@@ -40,9 +40,8 @@ jobs:
         run: bun install
       - name: Cross-compile
         run: |
-          
           suffix="${{ matrix.target }}"
           suffix="${suffix#bun-}"
           bun build --compile --target=${{ matrix.target }} --minify \
-            src/index.ts --outfile dist/ccws-picker-$suffix
-          file dist/ccws-picker-$suffix
+            src/index.ts --outfile dist/ccws-$suffix
+          file dist/ccws-$suffix
