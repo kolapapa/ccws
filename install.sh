@@ -5,7 +5,6 @@ set -euo pipefail
 
 REPO="kolapapa/ccws"
 INSTALL_BIN="$HOME/.local/bin"
-PICKER_BIN_DIR="$HOME/.ccws/bin"
 
 write_shell_rc=1
 enable_claude_wrapper=0
@@ -77,17 +76,14 @@ if [[ -z "$version" ]]; then
 fi
 
 url_ccws="https://github.com/$REPO/releases/download/$version/ccws-$plat"
-url_picker="https://github.com/$REPO/releases/download/$version/ccws-picker-$plat"
 
 echo "  Downloading $version ($plat)..."
 curl -fsSL "$url_ccws" -o "$INSTALL_BIN/ccws"
 chmod +x "$INSTALL_BIN/ccws"
 echo "  ✓ ccws → $INSTALL_BIN/ccws"
 
-mkdir -p "$PICKER_BIN_DIR"
-curl -fsSL "$url_picker" -o "$PICKER_BIN_DIR/ccws-picker"
-chmod +x "$PICKER_BIN_DIR/ccws-picker"
-echo "  ✓ ccws-picker → $PICKER_BIN_DIR/ccws-picker"
+# Clean up the legacy ccws-picker copy from pre-v1.x installs (now unused).
+rm -f "$HOME/.ccws/bin/ccws-picker" 2>/dev/null || true
 
 if [[ "$write_shell_rc" -eq 1 ]]; then
     echo ""

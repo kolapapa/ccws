@@ -22,17 +22,13 @@ jobs:
         run: bun install
       - name: Cross-compile
         run: |
-          
           bun build --compile --target=${{ matrix.target.triple }} --minify \
             src/index.ts --outfile dist/ccws-${{ matrix.target.suffix }}
-          cp dist/ccws-${{ matrix.target.suffix }} dist/ccws-picker-${{ matrix.target.suffix }}
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: ccws-${{ matrix.target.suffix }}
-          path: |
-            dist/ccws-${{ matrix.target.suffix }}
-            dist/ccws-picker-${{ matrix.target.suffix }}
+          path: dist/ccws-${{ matrix.target.suffix }}
 
   release:
     needs: build

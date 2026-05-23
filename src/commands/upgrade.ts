@@ -1,5 +1,5 @@
-import { chmodSync, lstatSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { chmodSync, lstatSync, realpathSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { VERSION } from '../version.js';
 import { logError } from '../logger.js';
 
@@ -152,41 +152,24 @@ export async function runUpgrade(argv: string[]): Promise<number> {
   }
 
   const ccwsPath = realpathSync(process.execPath);
-  const home = process.env.HOME ?? '';
-  if (home === '') {
-    logError('HOME is not set — cannot resolve ccws-picker install path');
-    return 1;
-  }
-  const pickerPath = join(home, '.ccws', 'bin', 'ccws-picker');
+  const err = refuseSymlink(ccwsPath, 'ccws binary');
+  if (err !== null) { logError(err); return 1; }
 
-  for (const [path, label] of [[ccwsPath, 'ccws binary'], [pickerPath, 'ccws-picker']] as const) {
-    const err = refuseSymlink(path, label);
-    if (err !== null) { logError(err); return 1; }
-  }
-
-  // Picker dir might not exist on a host that's never run install.sh
-  // (unlikely once you reach this command, but be defensive).
-  try {
-    // mkdirSync recursive is idempotent
-    const { mkdirSync } = await import('node:fs');
-    mkdirSync(dirname(pickerPath), { recursive: true });
-  } catch (e) {
-    logError(`could not create ${dirname(pickerPath)}: ${(e as Error).message}`);
-    return 1;
-  }
-
-  const ccwsUrl   = `https://github.com/${REPO}/releases/download/${targetTag}/ccws-${plat.label}`;
-  const pickerUrl = `https://github.com/${REPO}/releases/download/${targetTag}/ccws-picker-${plat.label}`;
+  const ccwsUrl = `https://github.com/${REPO}/releases/download/${targetTag}/ccws-${plat.label}`;
 
   process.stdout.write(`ccws ${currentTag} → ${targetTag} (${plat.label})\n`);
   try {
     await downloadBinary(ccwsUrl, ccwsPath);
     process.stdout.write(`  ✓ ${ccwsPath}\n`);
-    await downloadBinary(pickerUrl, pickerPath);
-    process.stdout.write(`  ✓ ${pickerPath}\n`);
   } catch (e) {
     logError(`upgrade failed: ${(e as Error).message}`);
     return 1;
+  }
+
+  // Best-effort cleanup of the legacy ccws-picker copy from pre-v1.x installs.
+  const home = process.env.HOME ?? '';
+  if (home !== '') {
+    try { unlinkSync(join(home, '.ccws', 'bin', 'ccws-picker')); } catch { /* not there, fine */ }
   }
 
   process.stdout.write(`\nRestart your shell so the hook re-evals:\n`);
