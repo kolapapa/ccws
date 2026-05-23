@@ -1,10 +1,15 @@
 import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ccwsRoot, realClaudeDir, workspacesDir } from '../paths.js';
+import { ccwsRoot, envFile, realClaudeDir, workspacesDir, wsDir } from '../paths.js';
 import { logError, logInfo, logOk } from '../logger.js';
 import { promptLine, promptHidden, promptYn } from '../prompt.js';
 import { runAdd } from './add.js';
 import { SLASH_COMMANDS } from '../embedded.js';
+import { writeEnvFile } from '../env.js';
+import { farmCreate } from '../symlinkFarm.js';
+import { withLock } from '../lock.js';
+
+const DEFAULT_WS_NAME = 'default';
 
 const BANNER = `
 ╔══════════════════════════════════════════════╗
@@ -59,7 +64,7 @@ export async function runInit(argv: string[]): Promise<number> {
 
   mkdirSync(workspacesDir(), { recursive: true });
 
-  process.stderr.write('[1/3] Checking ~/.claude/...\n\n');
+  process.stderr.write('[1/4] Checking ~/.claude/...\n\n');
   const claude = realClaudeDir();
   if (existsSync(claude)) {
     let plugins = 0; let skills = 0;
@@ -85,7 +90,7 @@ export async function runInit(argv: string[]): Promise<number> {
     logOk(`created empty ${claude}/`);
   }
 
-  process.stderr.write('\n[2/3] Installing slash commands...\n');
+  process.stderr.write('\n[2/4] Installing slash commands...\n');
   mkdirSync(join(claude, 'commands'), { recursive: true });
   for (const [name, content] of Object.entries(SLASH_COMMANDS)) {
     const dst = join(claude, 'commands', name);
@@ -93,7 +98,40 @@ export async function runInit(argv: string[]): Promise<number> {
   }
   logOk(`installed slash commands to ${claude}/commands/`);
 
-  process.stderr.write('\n[3/3] Add your first workspace?\n');
+  process.stderr.write(`\n[3/4] Creating '${DEFAULT_WS_NAME}' home workspace...\n`);
+  const defaultWs = wsDir(DEFAULT_WS_NAME);
+  if (existsSync(defaultWs)) {
+    logOk(`'${DEFAULT_WS_NAME}' workspace already exists at ${defaultWs}`);
+  } else {
+    process.stderr.write(`\n      '${DEFAULT_WS_NAME}' is your anchor workspace. When active, claude uses\n`);
+    process.stderr.write('      ~/.claude/ directly (no private CLAUDE_CONFIG_DIR). Install plugins\n');
+    process.stderr.write('      from here — other workspaces inherit them through symlinks back to\n');
+    process.stderr.write('      ~/.claude/{plugins,settings.json,...}.\n\n');
+    process.stderr.write('      (Optional) Pin your everyday API config — all blank means no\n');
+    process.stderr.write('      pinning; claude uses whatever is already in ~/.claude/.\n\n');
+    const defUrl = await promptLine('  Endpoint URL (Anthropic default, blank to skip): ');
+    const defToken = await promptHidden('  API token (paste, hidden; blank to skip): ');
+    let defProxy = '';
+    const useProxy = await promptYn('  Enable proxy?', 'N');
+    if (useProxy) {
+      const url = await promptLine('  Proxy URL [http://127.0.0.1:7890]: ');
+      defProxy = url === '' ? 'http://127.0.0.1:7890' : url;
+    }
+    await withLock(10, async () => {
+      mkdirSync(defaultWs, { recursive: true });
+      writeEnvFile(envFile(DEFAULT_WS_NAME), {
+        name: DEFAULT_WS_NAME,
+        baseUrl: defUrl !== '' ? defUrl : undefined,
+        token: defToken !== '' ? defToken : undefined,
+        proxy: defProxy !== '' ? defProxy : undefined,
+        noIsolate: true,
+      });
+      farmCreate(DEFAULT_WS_NAME);
+    });
+    logOk(`created home workspace '${DEFAULT_WS_NAME}' at ${defaultWs}`);
+  }
+
+  process.stderr.write('\n[4/4] Add another (isolated) workspace?\n');
   process.stderr.write('      (for a different account or endpoint — leave blank to skip)\n\n');
   const firstName = await promptLine('  Workspace name (blank to skip): ');
   if (firstName !== '') {
