@@ -27,7 +27,7 @@ jobs:
             src/index.ts --outfile dist/ccws-${{ matrix.target.suffix }}
           cp dist/ccws-${{ matrix.target.suffix }} dist/ccws-picker-${{ matrix.target.suffix }}
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ccws-${{ matrix.target.suffix }}
           path: |
@@ -42,7 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
       - name: Compute checksums
@@ -52,7 +52,7 @@ jobs:
             (cd "$d" && sha256sum * >> ../SHA256SUMS)
           done
       - name: Create release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             artifacts/ccws-*/*
