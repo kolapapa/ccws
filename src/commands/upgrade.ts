@@ -76,10 +76,57 @@ async function fetchLatestTag(): Promise<string> {
   return body.tag_name;
 }
 
+function formatMB(bytes: number): string {
+  return (bytes / (1024 * 1024)).toFixed(1);
+}
+
+function renderProgress(downloaded: number, total: number, isTTY: boolean, final: boolean): void {
+  const dl = formatMB(downloaded);
+  const line = total > 0
+    ? `  Downloading: ${dl} / ${formatMB(total)} MB (${Math.floor((downloaded / total) * 100)}%)`
+    : `  Downloading: ${dl} MB`;
+  if (isTTY) {
+    // \r returns to col 0; \x1b[K clears to end-of-line so a shorter line
+    // doesn't leave trailing characters from a previous longer line.
+    process.stdout.write(`\r\x1b[K${line}${final ? '\n' : ''}`);
+  } else {
+    process.stdout.write(`${line}\n`);
+  }
+}
+
 async function downloadBinary(url: string, dest: string): Promise<void> {
   const res = await fetch(url, { headers: { 'User-Agent': `ccws/${VERSION}` } });
   if (!res.ok) throw new Error(`download failed: ${res.status} ${res.statusText} for ${url}`);
-  const buf = new Uint8Array(await res.arrayBuffer());
+  if (res.body === null) throw new Error(`download failed: empty response body for ${url}`);
+
+  const total = Number(res.headers.get('content-length') ?? '0');
+  const isTTY = process.stdout.isTTY === true;
+  const intervalMs = isTTY ? 100 : 1000;
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let downloaded = 0;
+  let lastEmit = 0;
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    downloaded += value.byteLength;
+    const now = Date.now();
+    if (now - lastEmit >= intervalMs) {
+      lastEmit = now;
+      renderProgress(downloaded, total, isTTY, false);
+    }
+  }
+  renderProgress(downloaded, total, isTTY, true);
+
+  const buf = new Uint8Array(downloaded);
+  let offset = 0;
+  for (const c of chunks) {
+    buf.set(c, offset);
+    offset += c.byteLength;
+  }
+
   const tmp = `${dest}.upgrade-tmp`;
   writeFileSync(tmp, buf);
   chmodSync(tmp, 0o755);
