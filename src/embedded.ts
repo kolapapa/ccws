@@ -120,27 +120,38 @@ end
 `;
 
 export const CLAUDE_WRAPPER = `claude() {
+    local __ccws_rc
+    # First launch: apply the resolved workspace env, then run claude.
     if [[ -n "\${CCWS_NAME:-}" ]]; then
         command claude "$@"
-        return $?
+        __ccws_rc=$?
+    else
+        local __ccws_name __ccws_exports
+        if __ccws_name=$(command ccws which 2>/dev/null) \\
+            && __ccws_exports=$(command ccws use "$__ccws_name" 2>/dev/null); then
+            ( eval "$__ccws_exports"; command claude "$@" )
+            __ccws_rc=$?
+        else
+            command claude "$@"
+            __ccws_rc=$?
+        fi
     fi
 
-    local name
-    if ! name=$(command ccws which 2>/dev/null); then
-        command claude "$@"
-        return $?
-    fi
-
-    local exports
-    if ! exports=$(command ccws use "$name" 2>/dev/null); then
-        command claude "$@"
-        return $?
-    fi
-
-    (
-        eval "$exports"
-        command claude "$@"
-    )
+    # Account-switch relaunch loop: '/switch <name>' (or 'ccws switch') records a
+    # target workspace + session id; once claude exits, switch accounts and resume
+    # that exact session. Loops so consecutive switches keep working.
+    local __ccws_next __ccws_ws __ccws_sid
+    while __ccws_next=$(command ccws switch --pop 2>/dev/null) && [[ -n "$__ccws_next" ]]; do
+        read -r __ccws_ws __ccws_sid <<< "$__ccws_next"
+        ccws use "$__ccws_ws" || break
+        if [[ -n "$__ccws_sid" ]]; then
+            command claude --resume "$__ccws_sid"
+        else
+            command claude --continue
+        fi
+        __ccws_rc=$?
+    done
+    return $__ccws_rc
 }
 `;
 
@@ -155,21 +166,35 @@ echo "CLAUDE_CONFIG_DIR: \${CLAUDE_CONFIG_DIR:-(not set)}"
 echo "Endpoint: \${ANTHROPIC_BASE_URL:-anthropic (default)}"
 \`\`\`
 `,
-  'switch.md': `# /switch — switching workspaces guidance
+  'switch.md': `# /switch — switch ccws account and resume this session
 
-Claude can't change shell env vars at runtime. To switch workspaces:
+The user wants to switch the active ccws workspace/account (e.g. because the
+current one ran out of quota) and continue THIS exact conversation under it.
+Target workspace name: \`$ARGUMENTS\`
 
-1. Exit this claude session (Ctrl-D or /exit)
-2. In your shell, run:
+Claude cannot change the running shell's env or exit itself, so the actual switch
+happens after the user exits. Your job is to arm it. Do this:
+
+1. **No name given?** Run \`ccws current\` and \`ccws list\`, show the available
+   workspaces, and tell the user to run \`/switch <name>\`. Then stop.
+
+2. **Name given?** Arm the switch, capturing the current session so it resumes
+   exactly (not just "most recent"):
    \`\`\`bash
-   ccws use <workspace>
+   ccws switch "$ARGUMENTS" "$CLAUDE_CODE_SESSION_ID"
    \`\`\`
-   Or use the interactive picker:
-   \`\`\`bash
-   ccws
-   \`\`\`
-3. Start \`claude\` again — it will pick up the new workspace's \`CLAUDE_CONFIG_DIR\`
 
-To see available workspaces: \`ccws list\`
+3. **If it succeeded**, tell the user verbatim:
+   > ✅ Armed switch to \`$ARGUMENTS\`. Press **Ctrl-D** (or type \`/exit\`) now —
+   > your shell will reopen this exact conversation on the \`$ARGUMENTS\` account.
+
+   Do NOT attempt to exit on their behalf; you cannot. They must press Ctrl-D.
+
+4. **If it failed**, show the error and run \`ccws list\` so they can pick a valid
+   name.
+
+Note: the automatic relaunch requires the claude() wrapper (\`ccws hook --claude\`).
+Without it, the fallback is to exit and run \`ccws use <name> && claude --resume\`
+manually.
 `,
 };
