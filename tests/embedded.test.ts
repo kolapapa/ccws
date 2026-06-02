@@ -99,10 +99,17 @@ describe('embedded shell scripts', () => {
       expect(CLAUDE_WRAPPER).toContain('CCWS_NAME');
     });
 
-    it('runs claude in a subshell after eval so parent env stays clean', () => {
+    it('runs auto-activation in a subshell after eval so parent env stays clean', () => {
       // Use a fully literal substring search to avoid regex escaping headaches.
-      expect(CLAUDE_WRAPPER).toContain('eval "$exports"');
-      expect(CLAUDE_WRAPPER.includes('(\n        eval')).toBe(true);
+      expect(CLAUDE_WRAPPER).toContain('eval "$__ccws_exports"');
+      expect(CLAUDE_WRAPPER).toContain('( eval "$__ccws_exports"; command claude "$@" )');
+    });
+
+    it('relaunches under the popped workspace, resuming the captured session', () => {
+      expect(CLAUDE_WRAPPER).toContain('command ccws switch --pop');
+      expect(CLAUDE_WRAPPER).toContain('ccws use "$__ccws_ws"');
+      expect(CLAUDE_WRAPPER).toContain('command claude --resume "$__ccws_sid"');
+      expect(CLAUDE_WRAPPER).toContain('command claude --continue');
     });
 
     it('evaluates cleanly in bash', async () => {

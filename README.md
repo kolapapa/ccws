@@ -68,7 +68,7 @@ What this does:
 Verify:
 
 ```bash
-ccws --version       # ccws 1.2.3
+ccws --version       # ccws 1.3.0
 ```
 
 Then run `ccws init`.
@@ -238,9 +238,30 @@ ccws use company
 claude                            # uses company regardless of $PWD
 ```
 
+### Switching accounts mid-session · `/switch`
+
+Ran out of quota on one account? Inside Claude, run `/switch <workspace>`. It
+captures the current session and asks you to press Ctrl-D. When claude exits, the
+wrapper switches accounts and relaunches `claude --resume` on **the exact session
+you were in** — the conversation continues under the new account:
+
+```
+/switch deepseek          # in Claude → arms the switch, captures this session
+<Ctrl-D>                  # you exit
+  → ccws use deepseek     # wrapper swaps token / endpoint
+  → claude --resume <id>  # same conversation, new account
+```
+
+Under the hood `/switch` runs `ccws switch <name> <session-id>`, which writes a
+one-shot marker (`~/.ccws/next-workspace`) that the wrapper consumes on the next
+launch. It works because session history (`projects/`) is shared across all
+workspaces (see below), so the session is visible under the new account. Requires
+the `claude` wrapper (`--with-claude-wrapper`); without it, exit and run
+`ccws use <name> && claude --resume` by hand.
+
 ## Home workspaces · `CCWS_NO_ISOLATE=1`
 
-A normal (isolated) ccws workspace owns its own `CLAUDE_CONFIG_DIR` — Claude Code reads sessions, projects, `.claude.json` from `~/.ccws/workspaces/<name>/`. Shared items (`plugins/`, `skills/`, `settings.json`, `commands/`, `hooks/`, ...) are symlinked back to `~/.claude/`.
+A normal (isolated) ccws workspace owns its own `CLAUDE_CONFIG_DIR` — Claude Code reads sessions and `.claude.json` from `~/.ccws/workspaces/<name>/`. Shared items (`plugins/`, `skills/`, `settings.json`, `commands/`, `hooks/`, `projects/`, ...) are symlinked back to `~/.claude/`. Sharing `projects/` means conversation history follows you across accounts — that's what lets `/switch` resume the same session under a different workspace.
 
 A **home workspace** drops the private `CLAUDE_CONFIG_DIR` entirely: Claude Code reads everything (including sessions) from `~/.claude/`. Use cases:
 
@@ -398,6 +419,8 @@ ccws add [<name>]          Create a workspace (interactive if no args)
                            [--non-interactive]
 ccws use <name>            Activate workspace in current shell
 ccws unset                 Deactivate workspace in current shell
+ccws switch <name>         Arm an account switch for the next claude launch
+                           (used by the /switch slash command)
 ccws local <name>          Set .ccws-workspace in $PWD (pyenv-style)
 ccws local --unset         Remove .ccws-workspace
 ccws global <name>         Set user-default workspace
@@ -412,7 +435,7 @@ ccws doctor                Run health checks
 ccws sync [<name>]         Re-link symlinks for one or all workspaces
 ccws upgrade [--check]     Upgrade to latest GitHub release
                            [--version vX.Y.Z]
-ccws --version             Print ccws 1.2.3
+ccws --version             Print ccws 1.3.0
 ccws --no-tui              Bypass TUI when called without args
 ccws --help                Show this help
 ```

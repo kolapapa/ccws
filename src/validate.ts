@@ -1,6 +1,7 @@
 const RESERVED = new Set([
   'add', 'init', 'list', 'use', 'unset', 'current', 'rm', 'sync',
   'doctor', 'tui', 'none', 'default-tui', 'local', 'global', 'which', 'hook',
+  'switch',
 ]);
 
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
