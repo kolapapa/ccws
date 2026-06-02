@@ -29,6 +29,10 @@ export function globalScopeFile(): string {
   return join(ccwsRoot(), 'global');
 }
 
+export function nextWorkspaceFile(): string {
+  return join(ccwsRoot(), 'next-workspace');
+}
+
 export function realClaudeDir(): string {
   return process.env.CCWS_REAL_CLAUDE_DIR ?? join(home(), '.claude');
 }

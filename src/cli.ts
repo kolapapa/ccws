@@ -14,6 +14,7 @@ import { runAdd } from './commands/add.js';
 import { runDoctor } from './commands/doctor.js';
 import { runInit } from './commands/init.js';
 import { runUpgrade } from './commands/upgrade.js';
+import { runSwitch } from './commands/switch.js';
 
 export const PICKER_SENTINEL = -1;
 
@@ -27,6 +28,8 @@ Usage:
                              [--proxy URL] [--description DESC]
   ccws use <name>            Activate workspace in current shell
   ccws unset                 Deactivate workspace in current shell
+  ccws switch <name>         Arm a switch for the next claude launch
+                             (used by the /switch slash command)
   ccws local <name>          Set .ccws-workspace in $PWD
   ccws local --unset         Remove .ccws-workspace from $PWD
   ccws global <name>         Set user-default workspace
@@ -72,6 +75,7 @@ registerCommand('add', runAdd);
 registerCommand('doctor', runDoctor);
 registerCommand('init', runInit);
 registerCommand('upgrade', runUpgrade);
+registerCommand('switch', runSwitch);
 
 export async function dispatch(argv: string[]): Promise<number> {
   let noTui = false;
