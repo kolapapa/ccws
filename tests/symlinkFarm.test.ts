@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, symlinkSync, lstatSync, readlinkSync, existsSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, symlinkSync, lstatSync, readlinkSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { SHARED_ITEMS, farmCreate, farmVerify, farmSync } from '../src/symlinkFarm.js';
@@ -34,6 +34,7 @@ describe('symlinkFarm', () => {
       'hooks',
       'plugins',
       'skills',
+      'projects',
     ]);
   });
 
@@ -59,6 +60,33 @@ describe('symlinkFarm', () => {
     writeFileSync(join(ws, 'plugins/junk.txt'), 'old');
     farmCreate('work');
     expect(lstatSync(join(ws, 'plugins')).isSymbolicLink()).toBe(true);
+  });
+
+  it('farmCreate merges an existing real projects dir into the shared source before linking', () => {
+    const ws = join(process.env.CCWS_ROOT!, 'workspaces/work');
+    // Per-workspace history that predates sharing.
+    mkdirSync(join(ws, 'projects/proj-a'), { recursive: true });
+    writeFileSync(join(ws, 'projects/proj-a/session-1.jsonl'), 'kept');
+    // A session already in the shared dir must win on collision.
+    mkdirSync(join(tmp, '.claude/projects/proj-a'), { recursive: true });
+    writeFileSync(join(tmp, '.claude/projects/proj-a/shared.jsonl'), 'shared');
+
+    farmCreate('work');
+
+    expect(lstatSync(join(ws, 'projects')).isSymbolicLink()).toBe(true);
+    // Old workspace history was merged into the shared source, not discarded.
+    expect(readFileSync(join(tmp, '.claude/projects/proj-a/session-1.jsonl'), 'utf8')).toBe('kept');
+    expect(readFileSync(join(tmp, '.claude/projects/proj-a/shared.jsonl'), 'utf8')).toBe('shared');
+    // And it resolves through the symlink.
+    expect(existsSync(join(ws, 'projects/proj-a/session-1.jsonl'))).toBe(true);
+  });
+
+  it('farmCreate creates the shared projects source when it does not exist', () => {
+    rmSync(join(tmp, '.claude/projects'), { recursive: true, force: true });
+    farmCreate('work');
+    const ws = join(process.env.CCWS_ROOT!, 'workspaces/work');
+    expect(lstatSync(join(ws, 'projects')).isSymbolicLink()).toBe(true);
+    expect(existsSync(join(tmp, '.claude/projects'))).toBe(true);
   });
 
   it('farmVerify returns true when all links resolve', () => {
